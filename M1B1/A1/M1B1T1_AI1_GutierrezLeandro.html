@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>M1B1T1&lowbar;AI1&colon;  Consultas a bases de datos relacionales con SQL</title>
+            <style>
+/* From extension vscode.github */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+.vscode-dark img[src$=\#gh-light-mode-only],
+.vscode-light img[src$=\#gh-dark-mode-only] {
+	display: none;
+}
+
+</style>
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex/dist/katex.min.css">
+<link href="https://cdn.jsdelivr.net/npm/katex-copytex@latest/dist/katex-copytex.min.css" rel="stylesheet" type="text/css">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/markdown.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/highlight.css">
+<style>
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe WPC', 'Segoe UI', system-ui, 'Ubuntu', 'Droid Sans', sans-serif;
+                font-size: 14px;
+                line-height: 1.6;
+            }
+        </style>
+        <style>
+.task-list-item {
+    list-style-type: none;
+}
+
+.task-list-item-checkbox {
+    margin-left: -20px;
+    vertical-align: middle;
+    pointer-events: none;
+}
+</style>
+<style>
+:root {
+  --color-note: #0969da;
+  --color-tip: #1a7f37;
+  --color-warning: #9a6700;
+  --color-severe: #bc4c00;
+  --color-caution: #d1242f;
+  --color-important: #8250df;
+}
+
+</style>
+<style>
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-note: #2f81f7;
+    --color-tip: #3fb950;
+    --color-warning: #d29922;
+    --color-severe: #db6d28;
+    --color-caution: #f85149;
+    --color-important: #a371f7;
+  }
+}
+
+</style>
+<style>
+.markdown-alert {
+  padding: 0.5rem 1rem;
+  margin-bottom: 16px;
+  color: inherit;
+  border-left: .25em solid #888;
+}
+
+.markdown-alert>:first-child {
+  margin-top: 0
+}
+
+.markdown-alert>:last-child {
+  margin-bottom: 0
+}
+
+.markdown-alert .markdown-alert-title {
+  display: flex;
+  font-weight: 500;
+  align-items: center;
+  line-height: 1
+}
+
+.markdown-alert .markdown-alert-title .octicon {
+  margin-right: 0.5rem;
+  display: inline-block;
+  overflow: visible !important;
+  vertical-align: text-bottom;
+  fill: currentColor;
+}
+
+.markdown-alert.markdown-alert-note {
+  border-left-color: var(--color-note);
+}
+
+.markdown-alert.markdown-alert-note .markdown-alert-title {
+  color: var(--color-note);
+}
+
+.markdown-alert.markdown-alert-important {
+  border-left-color: var(--color-important);
+}
+
+.markdown-alert.markdown-alert-important .markdown-alert-title {
+  color: var(--color-important);
+}
+
+.markdown-alert.markdown-alert-warning {
+  border-left-color: var(--color-warning);
+}
+
+.markdown-alert.markdown-alert-warning .markdown-alert-title {
+  color: var(--color-warning);
+}
+
+.markdown-alert.markdown-alert-tip {
+  border-left-color: var(--color-tip);
+}
+
+.markdown-alert.markdown-alert-tip .markdown-alert-title {
+  color: var(--color-tip);
+}
+
+.markdown-alert.markdown-alert-caution {
+  border-left-color: var(--color-caution);
+}
+
+.markdown-alert.markdown-alert-caution .markdown-alert-title {
+  color: var(--color-caution);
+}
+
+pre {
+    background-color: rgb(235, 232, 232);
+}
+
+#diagrama{
+    padding-bottom: 150px;
+}
+</style>
+        
+        </head>
+        <body class="vscode-body vscode-light">
+            <h1 id="m1b1t1_ai1--consultas-a-bases-de-datos-relacionales-con-sql">M1B1T1_AI1:  Consultas a bases de datos relacionales con SQL</h1>
+<h4 id="autor-leandro-gutierrez">Autor: Leandro Gutierrez</h4>
+<h4 id="este-documento-intenta-dar-respuesta-a-las-actividades-propuesta-en-el-modulo-1-bloque-1-del-master-en-big-data-y-ciencia-de-datos-en-él-se-describirán-cada-uno-de-los-enunciados-postulados-y-los-resultados-obtenidos-a-través-del-uso-de-la-base-de-datos-relacional-oracle-y-su-interfaz-sql">Este documento intenta dar respuesta a las actividades propuestas en el Modulo 1 Bloque 1 del Master en Big Data y Ciencia de Datos. En él se describirán cada uno de los enunciados postulados y los resultados obtenidos a través del uso de la base de datos relacional Oracle y su interfaz SQL.</h4>
+<h4 id="abril-05-2024">Abril 05, 2024</h4>
+<hr>
+<h3 id="descripción">Descripción</h3>
+<p>Has sido contratado por una multinacional como Data Engineer. Se trata de una empresa global que vende hardware informático, incluidos almacenamiento, placas base, RAM, tarjetas de video y CPUs.</p>
+<p>Te dan acceso a su base de datos relacional, la cual está montada en un servidor Oracle. El modelo de datos (tablas, campos y relaciones) es el siguiente:</p>
+<p><img id="diagrama" src="file:////Users/lgutierrez/Proyectos/masters-tp/M1B1/A1/images/diagrama-relacional.JPG" alt="diagrama-relacional"></p>
+<h3 id="ejercicio-1">Ejercicio 1</h3>
+<blockquote>
+<p>¿Cuáles son los datos de los almacenes que tiene la compañía? Se necesita:</p>
+<ul>
+<li>Identificador del almacén.</li>
+<li>Nombre del almacén.</li>
+<li>Nombre de la ciudad, país y región donde está ubicado.</li>
+</ul>
+</blockquote>
+<h4 id="sql">SQL</h4>
+<pre><code>select  w.warehouse_id,
+        w.warehouse_name,
+        l.city||', '||c.country_name||', '|| r.region_name as LOCATION
+from warehouses w
+inner join locations l on l.location_id = w.location_id
+inner join countries c on c.country_id = l.country_id
+inner join regions r on r.region_id = c.region_id
+order by r.region_id;
+</code></pre>
+<h4 id="resultados">Resultados</h4>
+<p><img src="file:////Users/lgutierrez/Proyectos/masters-tp/M1B1/A1/images/1.png" alt="diagrama-relacional"></p>
+<h4 id="respuesta">Respuesta</h4>
+<p>La compañia cuenta con 9 depósitos. Desplegados en:</p>
+<ul>
+<li>2 regiones: América y Asia.</li>
+<li>6 paises: Estados Unidos, México, Canadá, India, China y Australia</li>
+<li>9 Ciudades: South Lake, San Francisco, New Jersey, Seattle, Mexico DF, Toronto, Bombay, Beijin y Sydney.</li>
+</ul>
+<h3 id="ejercicio-2">Ejercicio 2</h3>
+<blockquote>
+<p>¿Cuál es el nombre del producto que tiene más stock en Asia?</p>
+</blockquote>
+<h4 id="sql-1">SQL</h4>
+<pre><code>with ranking as (
+	select  p.product_id,
+	        p.product_name,
+	    	sum(i.quantity)
+	from products p
+	inner join inventories i on i.product_id = p.product_id
+	inner join warehouses w on w.warehouse_id = i.warehouse_id
+	inner join locations l on l.location_id = w.location_id
+	inner join countries c on c.country_id = l.country_id
+	inner join regions r on r.region_id = c.region_id
+	where r.region_name = 'Asia' 
+	group by p.product_id, p.product_name, r.region_id
+	order by sum(i.quantity) desc
+)
+select * from ranking where rownum = 1;
+</code></pre>
+<h4 id="resultados-1">Resultados</h4>
+<p><img src="file:////Users/lgutierrez/Proyectos/masters-tp/M1B1/A1/images/2.png" alt="diagrama-relacional"></p>
+<h4 id="respuesta-1">Respuesta</h4>
+<p>El producto de mayor stock en la región asiatica es la <strong>Memoria RAM DDR4 G.Skill Trident Z</strong> con un total de 605 unidades.</p>
+<h3 id="ejercicio-3">Ejercicio 3</h3>
+<blockquote>
+<p>¿Cuál es el producto que ha vendido más unidades durante 2016?</p>
+</blockquote>
+<h4 id="sql-2">SQL</h4>
+<pre><code>with ranking as (
+	select  p.product_id,
+	        p.product_name,
+	        sum(oi.quantity) venta
+	from orders o
+	inner join order_items oi on oi.order_id = o.order_id
+	inner join products p on p.product_id = oi.product_id
+	where extract(year from o.order_date) = '2016' and o.status = 'Shipped'
+	group by p.product_id, p.product_name
+	order by venta desc
+)
+select * from ranking where rownum = 1;
+</code></pre>
+<h4 id="resultados-2">Resultados</h4>
+<p><img src="file:////Users/lgutierrez/Proyectos/masters-tp/M1B1/A1/images/3.png" alt="diagrama-relacional"></p>
+<h4 id="respuesta-2">Respuesta</h4>
+<p>El producto de más vendido durante el año 2016 fué la <strong>Placa de video MSI GTX 1080 TI AERO 11G OC</strong> con un total de 364 unidades.</p>
+<h3 id="ejercicio-4">Ejercicio 4</h3>
+<blockquote>
+<p>¿Cuál es la categoría de productos que ha vendido más unidades durante 2017?</p>
+</blockquote>
+<h4 id="sql-3">SQL</h4>
+<pre><code>with ranking as (
+	select  c.category_id,
+	        c.category_name,
+	        sum(oi.quantity) venta
+	from orders o
+	inner join order_items oi on oi.order_id = o.order_id
+	inner join products p on p.product_id = oi.product_id
+	inner join product_categories c on c.category_id = p.category_id
+	where extract(year from o.order_date) = '2017' and o.status = 'Shipped'
+	group by c.category_id, c.category_name
+	order by venta desc
+)
+select * from ranking where rownum = 1;
+</code></pre>
+<h4 id="resultados-3">Resultados</h4>
+<p><img src="file:////Users/lgutierrez/Proyectos/masters-tp/M1B1/A1/images/4.png" alt="diagrama-relacional"></p>
+<h4 id="respuesta-3">Respuesta</h4>
+<p>La categoría mas vendida durante 2017 fué <strong>Storage (Almacenamiento)</strong> con un total de 6693 unidades.</p>
+<h3 id="ejercicio-5">Ejercicio 5</h3>
+<blockquote>
+<p>¿Cuál es el nombre del cliente cuyo gasto ha sido más alto en 2015?</p>
+</blockquote>
+<h4 id="sql-4">SQL</h4>
+<pre><code>with ranking as (
+	select  c.customer_id,
+	    	c.name,
+	        sum(oi.quantity * oi.unit_price) venta
+	from orders o
+	inner join order_items oi on oi.order_id = o.order_id
+	inner join products p on p.product_id = oi.product_id
+	inner join customers c on c.customer_id = o.customer_id
+	where extract(year from o.order_date) = '2015' and o.status = 'Shipped'
+	group by c.customer_id, c.name
+	order by venta desc
+)
+select * from ranking where rownum = 1;
+</code></pre>
+<h4 id="resultados-4">Resultados</h4>
+<p><img src="file:////Users/lgutierrez/Proyectos/masters-tp/M1B1/A1/images/5.png" alt="diagrama-relacional"></p>
+<h4 id="respuesta-4">Respuesta</h4>
+<p>El cliente que mas gastó durante el año 2015 fué el manufacturador de productos electrónicos de alta complejidad a escala mundial <strong>Jabil Circuit (<a href="https://www.jabil.com/">https://www.jabil.com/</a>)</strong>.</p>
+<h3 id="ejercicio-6">Ejercicio 6</h3>
+<blockquote>
+<p>¿Cuánto ha facturado la compañía en cada uno de los años de los que tiene datos?</p>
+</blockquote>
+<h4 id="sql-5">SQL</h4>
+<pre><code>select 	extract(year from o.order_date) as año,
+    	sum(oi.quantity * oi.unit_price) venta
+from orders o
+inner join order_items oi on oi.order_id = o.order_id
+where o.status = 'Shipped'
+group by extract(year from o.order_date)
+order by año asc;
+</code></pre>
+<h4 id="resultados-5">Resultados</h4>
+<p><img src="file:////Users/lgutierrez/Proyectos/masters-tp/M1B1/A1/images/6.png" alt="diagrama-relacional"></p>
+<h4 id="respuesta-5">Respuesta</h4>
+<p>Los datos cuentan con ventas desde el año 2013 al 2017, con excepcion del año 2014, en el cual no se registraron ventas. En los resultados se aprecia un crecimiento progresivo en las ventas en cada resultado anual. Logrando una tasa de mejora aproximada del <strong>2690%</strong>
+Considerando:</p>
+<p class="katex-block"><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mi>T</mi><mi>a</mi><mi>s</mi><mi>a</mi><mtext> </mtext><mi>d</mi><mi>e</mi><mtext> </mtext><mi>c</mi><mi>r</mi><mi>e</mi><mi>c</mi><mi>i</mi><mi>m</mi><mi>i</mi><mi>e</mi><mi>n</mi><mi>t</mi><mi>o</mi><mi mathvariant="normal">%</mi><mo>=</mo><mo stretchy="false">(</mo><mo stretchy="false">(</mo><mi>V</mi><mi>a</mi><mi>l</mi><mi>o</mi><mi>r</mi><mtext> </mtext><mi>i</mi><mi>n</mi><mi>i</mi><mi>c</mi><mi>i</mi><mi>a</mi><mi>l</mi><mo>−</mo><mi>V</mi><mi>a</mi><mi>l</mi><mi>o</mi><mi>r</mi><mtext> </mtext><mi>f</mi><mi>i</mi><mi>n</mi><mi>a</mi><mi>l</mi><mo stretchy="false">)</mo><mi mathvariant="normal">/</mi><mi>V</mi><mi>a</mi><mi>l</mi><mi>o</mi><mi>r</mi><mtext> </mtext><mi>i</mi><mi>n</mi><mi>i</mi><mi>c</mi><mi>i</mi><mi>a</mi><mi>l</mi><mo stretchy="false">)</mo><mo>×</mo><mn>100</mn></mrow><annotation encoding="application/x-tex">Tasa\ de\ crecimiento\% = ((Valor\ inicial - Valor\ final)/Valor\ inicial)×100
+</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8056em;vertical-align:-0.0556em;"></span><span class="mord mathnormal" style="margin-right:0.13889em;">T</span><span class="mord mathnormal">a</span><span class="mord mathnormal">s</span><span class="mord mathnormal">a</span><span class="mspace"> </span><span class="mord mathnormal">d</span><span class="mord mathnormal">e</span><span class="mspace"> </span><span class="mord mathnormal">crec</span><span class="mord mathnormal">imi</span><span class="mord mathnormal">e</span><span class="mord mathnormal">n</span><span class="mord mathnormal">t</span><span class="mord mathnormal">o</span><span class="mord">%</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">((</span><span class="mord mathnormal">Va</span><span class="mord mathnormal" style="margin-right:0.01968em;">l</span><span class="mord mathnormal" style="margin-right:0.02778em;">or</span><span class="mspace"> </span><span class="mord mathnormal">ini</span><span class="mord mathnormal">c</span><span class="mord mathnormal">ia</span><span class="mord mathnormal" style="margin-right:0.01968em;">l</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">Va</span><span class="mord mathnormal" style="margin-right:0.01968em;">l</span><span class="mord mathnormal" style="margin-right:0.02778em;">or</span><span class="mspace"> </span><span class="mord mathnormal" style="margin-right:0.10764em;">f</span><span class="mord mathnormal">ina</span><span class="mord mathnormal" style="margin-right:0.01968em;">l</span><span class="mclose">)</span><span class="mord">/</span><span class="mord mathnormal">Va</span><span class="mord mathnormal" style="margin-right:0.01968em;">l</span><span class="mord mathnormal" style="margin-right:0.02778em;">or</span><span class="mspace"> </span><span class="mord mathnormal">ini</span><span class="mord mathnormal">c</span><span class="mord mathnormal">ia</span><span class="mord mathnormal" style="margin-right:0.01968em;">l</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">100</span></span></span></span></span></p>
+<h3 id="ejercicio-7">Ejercicio 7</h3>
+<blockquote>
+<p>¿Cuáles son los nombres de los productos cuyo precio es superior la media?</p>
+</blockquote>
+<h4 id="sql-6">SQL</h4>
+<pre><code>select 	p.product_id,
+    	p.product_name,
+    	list_price
+from products p
+where list_price &gt; (select avg(list_price) from products)
+order by list_price asc;
+</code></pre>
+<h4 id="resultados-6">Resultados</h4>
+<p><img src="file:////Users/lgutierrez/Proyectos/masters-tp/M1B1/A1/images/7.png" alt="diagrama-relacional"></p>
+<p>Nota: solo se muestran los primeros 10 resultados, en total el listado comprende 85 articulos.</p>
+<h4 id="respuesta-6">Respuesta</h4>
+<p>Con una media de precio al rededor de los <strong>903.24</strong>, encontramos unos 85 productos cuyo valor es superior a dicho promedio.</p>
+<h3 id="ejercicio-8">Ejercicio 8</h3>
+<blockquote>
+<p>¿Cuáles son los empleados (nombre y apellido) que han facturado más de 50.000 $ durante 2017?</p>
+</blockquote>
+<h4 id="sql-7">SQL</h4>
+<pre><code>select  e.employee_id,
+    	(e.first_name || ' ' || e.last_name) as nombre_completo,
+        sum(oi.quantity * oi.unit_price) as venta
+from orders o
+inner join order_items oi on oi.order_id = o.order_id
+inner join employees e on e.employee_id = o.salesman_id
+where extract(year from o.order_date) = '2017' and o.status = 'Shipped'
+group by e.employee_id, (e.first_name || ' ' || e.last_name)
+having sum(oi.quantity * oi.unit_price) &gt; 50000
+order by venta asc;
+</code></pre>
+<h4 id="resultados-7">Resultados</h4>
+<p><img src="file:////Users/lgutierrez/Proyectos/masters-tp/M1B1/A1/images/8.png" alt="diagrama-relacional"></p>
+<h4 id="respuesta-7">Respuesta</h4>
+<p>Encontramos 8 empleados cuya facturación durante el año 2017 fué superior a los $50.000. El primer lugar lo ocupa <strong>Freya Gomez, con una facturación total de $2.499.633,26</strong></p>
+<h3 id="ejercicio-9">Ejercicio 9</h3>
+<blockquote>
+<p>¿Cuánto clientes no tienen persona de contacto?</p>
+</blockquote>
+<h4 id="sql-8">SQL</h4>
+<pre><code>select count(customer_id)
+from customers 
+where customer_id not in (select customer_id from contacts);
+</code></pre>
+<h4 id="resultados-8">Resultados</h4>
+<p><img src="file:////Users/lgutierrez/Proyectos/masters-tp/M1B1/A1/images/9.png" alt="diagrama-relacional"></p>
+<h4 id="respuesta-8">Respuesta</h4>
+<p>No encontramos clientes sin contacto asignado en la bas de datos.</p>
+<h3 id="ejercicio-10">Ejercicio 10</h3>
+<blockquote>
+<p>¿Cuál es el Manager (nombre y apellido identificado por el campo manager_id) que menos ha facturado durante 2017?</p>
+</blockquote>
+<h4 id="sql-9">SQL</h4>
+<pre><code>with ranking as (
+	select  m.employee_id,
+	    	(m.first_name || ' ' || m.last_name) as nombre_completo,
+	        sum(oi.quantity * oi.unit_price) as venta
+	from orders o
+	inner join order_items oi on oi.order_id = o.order_id
+	inner join employees e on e.employee_id = o.salesman_id
+	inner join employees m on m.employee_id = e.manager_id
+	where extract(year from o.order_date) = '2017' and o.status = 'Shipped'
+	group by m.employee_id, (m.first_name || ' ' || m.last_name)
+	order by venta asc
+)
+select * from ranking where rownum = 1;
+</code></pre>
+<h4 id="resultados-9">Resultados</h4>
+<p><img src="file:////Users/lgutierrez/Proyectos/masters-tp/M1B1/A1/images/10.png" alt="diagrama-relacional"></p>
+<h4 id="respuesta-9">Respuesta</h4>
+<p>De los 3 managers que registraron ventas durante el año 2017, fué <strong>Jessica Woods quién menos facturó, con un total de $545057.39</strong> durante el período analizado.</p>
+
+            <script async src="https://cdn.jsdelivr.net/npm/katex-copytex@latest/dist/katex-copytex.min.js"></script>
+            
+        </body>
+        </html>
