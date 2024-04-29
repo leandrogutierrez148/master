@@ -20,52 +20,52 @@ if __name__ == "__main__":
     # """
     # 1:  Los 10 productos más comprados.
     # """
-    # rotulo(1)
+    rotulo(1)
 
-    # df_purchases\
-    #     .groupBy("product_id")\
-    #     .count()\
-    #     .orderBy("count", ascending=False)\
-    #     .limit(10)\
-    #     .show()
+    df_purchases\
+        .groupBy("product_id")\
+        .count()\
+        .orderBy("count", ascending=False)\
+        .limit(10)\
+        .show()
 
-    # df_purchases.createOrReplaceTempView("purchases")
-    # sql_purchases = spark.sql('''SELECT product_id, COUNT(*) AS cant
-    #                   FROM purchases
-    #                   GROUP BY product_id
-    #                   ORDER BY cant DESC
-    #                   LIMIT 10''')
-    # sql_purchases.show()
+    df_purchases.createOrReplaceTempView("purchases")
+    sql_purchases = spark.sql('''SELECT product_id, COUNT(*) AS cant
+                      FROM purchases
+                      GROUP BY product_id
+                      ORDER BY cant DESC
+                      LIMIT 10''')
+    sql_purchases.show()
 
-    # """
-    # 2:  Porcentaje de compra de cada tipo de producto (item_type).
-    # """
-    # rotulo(2)
+    """
+    2:  Porcentaje de compra de cada tipo de producto (item_type).
+    """
+    rotulo(2)
 
-    # total_purchases = df_purchases.\
-    #     count()
+    total_purchases = df_purchases.\
+        count()
 
-    # df_purchases\
-    #     .groupBy("item_type")\
-    #     .count()\
-    #     .withColumn("per", F.col("count")/total_purchases*100)\
-    #     .show()
+    df_purchases\
+        .groupBy("item_type")\
+        .count()\
+        .withColumn("per", F.col("count")/total_purchases*100)\
+        .show()
 
-    # df_purchases.createOrReplaceTempView("purchases")
-    # sql_purchases = spark.sql('''
-    #                   WITH total AS (
-    #                     SELECT COUNT(*) total
-    #                     FROM purchases
-    #                   )
-    #                   SELECT item_type,
-    #                         total.total total,
-    #                         COUNT(*) cant,
-    #                         cant/total*100 as per
-    #                   FROM purchases
-    #                   CROSS JOIN total
-    #                   GROUP BY item_type, total.total
-    #                   ''')
-    # sql_purchases.show()
+    df_purchases.createOrReplaceTempView("purchases")
+    sql_purchases = spark.sql('''
+                      WITH total AS (
+                        SELECT COUNT(*) total
+                        FROM purchases
+                      )
+                      SELECT item_type,
+                            total.total total,
+                            COUNT(*) cant,
+                            cant/total*100 as per
+                      FROM purchases
+                      CROSS JOIN total
+                      GROUP BY item_type, total.total
+                      ''')
+    sql_purchases.show()
 
     """
     3:  Obtener los 3 productos más comprados por cada tipo de producto.
