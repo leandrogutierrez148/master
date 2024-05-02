@@ -1,0 +1,563 @@
+<html><head>
+    <meta charset="UTF-8">
+    <title>M1B1T1_AG1_GRUPO_5: Procesamiento de datos con Spark 2.x. Datos de ventas</title>
+    <style>
+/* From extension vscode.github */
+/*---------------------------------------------------------------------------------------------
+*  Copyright (c) Microsoft Corporation. All rights reserved.
+*  Licensed under the MIT License. See License.txt in the project root for license information.
+*--------------------------------------------------------------------------------------------*/
+
+.vscode-dark img[src$=\#gh-light-mode-only],
+.vscode-light img[src$=\#gh-dark-mode-only] {
+display: none;
+}
+
+</style>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex/dist/katex.min.css">
+<link href="https://cdn.jsdelivr.net/npm/katex-copytex@latest/dist/katex-copytex.min.css" rel="stylesheet" type="text/css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/markdown.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/highlight.css">
+<style>
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe WPC', 'Segoe UI', system-ui, 'Ubuntu', 'Droid Sans', sans-serif;
+        font-size: 14px;
+        line-height: 1.6;
+    }
+</style>
+<style>
+.task-list-item {
+list-style-type: none;
+}
+
+.task-list-item-checkbox {
+margin-left: -20px;
+vertical-align: middle;
+pointer-events: none;
+}
+</style>
+<style>
+:root {
+--color-note: #0969da;
+--color-tip: #1a7f37;
+--color-warning: #9a6700;
+--color-severe: #bc4c00;
+--color-caution: #d1242f;
+--color-important: #8250df;
+}
+
+</style>
+<style>
+@media (prefers-color-scheme: dark) {
+:root {
+--color-note: #2f81f7;
+--color-tip: #3fb950;
+--color-warning: #d29922;
+--color-severe: #db6d28;
+--color-caution: #f85149;
+--color-important: #a371f7;
+}
+}
+
+</style>
+<style>
+.markdown-alert {
+padding: 0.5rem 1rem;
+margin-bottom: 16px;
+color: inherit;
+border-left: .25em solid #888;
+}
+
+.markdown-alert>:first-child {
+margin-top: 0
+}
+
+.markdown-alert>:last-child {
+margin-bottom: 0
+}
+
+.markdown-alert .markdown-alert-title {
+display: flex;
+font-weight: 500;
+align-items: center;
+line-height: 1
+}
+
+.markdown-alert .markdown-alert-title .octicon {
+margin-right: 0.5rem;
+display: inline-block;
+overflow: visible !important;
+vertical-align: text-bottom;
+fill: currentColor;
+}
+
+.markdown-alert.markdown-alert-note {
+border-left-color: var(--color-note);
+}
+
+.markdown-alert.markdown-alert-note .markdown-alert-title {
+color: var(--color-note);
+}
+
+.markdown-alert.markdown-alert-important {
+border-left-color: var(--color-important);
+}
+
+.markdown-alert.markdown-alert-important .markdown-alert-title {
+color: var(--color-important);
+}
+
+.markdown-alert.markdown-alert-warning {
+border-left-color: var(--color-warning);
+}
+
+.markdown-alert.markdown-alert-warning .markdown-alert-title {
+color: var(--color-warning);
+}
+
+.markdown-alert.markdown-alert-tip {
+border-left-color: var(--color-tip);
+}
+
+.markdown-alert.markdown-alert-tip .markdown-alert-title {
+color: var(--color-tip);
+}
+
+.markdown-alert.markdown-alert-caution {
+border-left-color: var(--color-caution);
+}
+
+.markdown-alert.markdown-alert-caution .markdown-alert-title {
+color: var(--color-caution);
+}
+
+pre {
+background-color: rgb(248, 245, 245);
+}
+
+img, video {
+max-width: 40%;
+max-height: 40%;
+}
+
+code{
+font-size: small;
+}
+</style>
+
+</head>
+<body class="vscode-body vscode-light">
+    <h1 id="m1b1t1_ag1_grupo_5-procesamiento-de-datos-con-spark-2x-datos-de-ventas">M1B1T1_AG1_GRUPO_5: Procesamiento de datos con Spark 2.x. Datos de ventas</h1>
+<h4 id="autores-jorge-leodeg-ramirez-diaz-y-leandro-gutierrez">Autores: Jorge Leodeg Ramirez Diaz y Leandro Gutierrez</h4>
+<h4 id="grupo-5">Grupo: 5</h4>
+<h4 id="este-documento-intenta-dar-respuesta-a-las-actividades-propuestas-en-el-modulo-1-bloque-1-actividad-grupal-1-en-él-se-describirán-cada-uno-de-los-enunciados-postulados-y-los-resultados-obtenidos-a-través-del-uso-de-spark-y-sus-apis-dataframe-y-sql">Este documento intenta dar respuesta a las actividades propuestas en el Modulo 1 Bloque 1 Actividad Grupal 1. En él se describirán cada uno de los enunciados postulados y los resultados obtenidos a través del uso de Spark y sus APIs DataFrame y SQL</h4>
+<h4 id="abril-22-2024">Abril 22, 2024</h4>
+<hr>
+<h3 id="descripción">Descripción</h3>
+<p>Habéis sido contratados por una empresa perteneciente al sector del Retail. Es una empresa con presencia a nivel mundial con sede en España. Tiene tanto tiendas físicas, como venta on-line.</p>
+<p>Todos los días recibe un archivo llamado purchases.json con compras realizadas en todo el mundo</p>
+<p>Cada línea del fichero es una compra de una unidad del producto correspondiente</p>
+<p><img src="file:////Users/lgutierrez/Proyectos/master-compartido/M1B1/AG1/images/purchases.jpeg" alt="purchases"></p>
+<p>La plataforma logística envía todos los días un archivo stock.csv con el stock de cada producto:</p>
+<p><img src="file:////Users/lgutierrez/Proyectos/master-compartido/M1B1/AG1/images/stock.jpeg" alt="purchases"></p>
+<p style="
+margin-bottom: 400px;
+">Nota: Los datos se han generado de forma aleatoria.</p>
+<h3 id="ejercicio-1">Ejercicio 1</h3>
+<blockquote>
+<p>Obtén los 10 productos más comprados.</p>
+</blockquote>
+<h4 id="query">Query</h4>
+<pre><code class="language-python">    <span class="hljs-comment"># DataFrame</span>
+df_purchases\
+.groupBy(<span class="hljs-string">"product_id"</span>)\
+.count()\
+.orderBy(<span class="hljs-string">"count"</span>, ascending=<span class="hljs-literal">False</span>)\
+.limit(<span class="hljs-number">10</span>)\
+.show()
+
+<span class="hljs-comment"># SQL</span>
+df_purchases.createOrReplaceTempView(<span class="hljs-string">"purchases"</span>)
+sql_purchases = spark.sql(<span class="hljs-string">"""
+                      SELECT product_id, COUNT(*) AS cant
+                      FROM purchases
+                      GROUP BY product_id
+                      ORDER BY cant DESC
+                      LIMIT 10
+                      """</span>)
+sql_purchases.show()
+</code></pre>
+<h4 id="resultados">Resultados</h4>
+<p><img src="file:////Users/lgutierrez/Proyectos/master-compartido/M1B1/AG1/images/1.png" alt="imagen"></p>
+<h4 id="respuesta">Respuesta</h4>
+<p style="
+margin-bottom: 300px;
+">El listado de los 10 productos mas vendidos se puede apreciar en la imagen superior, donde el <strong>product_id = 64</strong> lidera el ranking con <strong>50 ventas</strong>.</p>
+<h3 id="ejercicio-2">Ejercicio 2</h3>
+<blockquote>
+<p>Porcentaje de compra de cada tipo de producto (item_type).</p>
+</blockquote>
+<h4 id="query-1">Query</h4>
+<pre><code class="language-python">    <span class="hljs-comment"># DataFrame</span>
+total_purchases = df_purchases.\
+count()
+
+df_purchases\
+.groupBy(<span class="hljs-string">"item_type"</span>)\
+.count()\
+.withColumn(<span class="hljs-string">"porcentage"</span>, F.col(<span class="hljs-string">"count"</span>)/total_purchases*<span class="hljs-number">100</span>)\
+.show()
+
+<span class="hljs-comment"># SQL</span>
+df_purchases.createOrReplaceTempView(<span class="hljs-string">"purchases"</span>)
+sql_purchases = spark.sql(<span class="hljs-string">"""
+                    WITH total AS (
+                        SELECT COUNT(*) total
+                        FROM purchases
+                    )
+                    SELECT item_type,
+                            total.total total,
+                            COUNT(*) cant,
+                            cant/total*100 as porcentage
+                    FROM purchases
+                    CROSS JOIN total
+                    GROUP BY item_type, total.total
+                    """</span>)
+sql_purchases.show()
+</code></pre>
+<h4 id="resultados-1">Resultados</h4>
+<p><img src="file:////Users/lgutierrez/Proyectos/master-compartido/M1B1/AG1/images/2.png" alt="imagen"></p>
+<h4 id="respuesta-1">Respuesta</h4>
+<p style="
+margin-bottom: 300px;
+">La imagen anterior muestra la distribución de las ventas respecto a cada tipo de item (<strong>item_type</strong>). Se nota un equilibrio en torno a un <strong>20%</strong> para cada una de las 5 categorias.</p>
+<h3 id="ejercicio-3">Ejercicio 3</h3>
+<blockquote>
+<p>Obtener los 3 productos más comprados por cada tipo de producto.</p>
+</blockquote>
+<h4 id="query-2">Query</h4>
+<pre><code class="language-python">    <span class="hljs-comment"># DataFrame</span>
+w = Window.partitionBy(<span class="hljs-string">"item_type"</span>).orderBy(F.col(<span class="hljs-string">"count"</span>).desc())
+
+df_purchases\
+.groupBy(<span class="hljs-string">"product_id"</span>, <span class="hljs-string">"item_type"</span>)\
+.count()\
+.withColumn(<span class="hljs-string">"rank"</span>, F.row_number().over(w))\
+.orderBy(<span class="hljs-string">"item_type"</span>, <span class="hljs-string">"rank"</span>, <span class="hljs-string">"product_id"</span>)\
+.where(F.col(<span class="hljs-string">"rank"</span>) &lt;= <span class="hljs-number">3</span>)\
+.show()
+
+<span class="hljs-comment"># SQL</span>
+df_purchases.createOrReplaceTempView(<span class="hljs-string">"purchases"</span>)
+sql = spark.sql(<span class="hljs-string">"""
+WITH ranked AS (
+SELECT product_id, item_type, COUNT(*) AS count,
+ROW_NUMBER() OVER (PARTITION BY item_type ORDER BY COUNT(*) DESC) AS rank
+FROM purchases
+GROUP BY product_id, item_type
+)
+SELECT product_id, item_type, count, rank
+FROM ranked
+WHERE rank &lt;= 3
+ORDER BY item_type, rank, product_id
+"""</span>)
+sql.show()
+</code></pre>
+<h4 id="resultados-2">Resultados</h4>
+<p><img src="file:////Users/lgutierrez/Proyectos/master-compartido/M1B1/AG1/images/3.png" alt="imagen"></p>
+<h4 id="respuesta-2">Respuesta</h4>
+<p style="
+margin-bottom: 100px;
+">La imagen anterior muestra el ranking de los 3 productos más comprados por cada una de las 5 categorías existentes.</p>
+<h3 id="ejercicio-4">Ejercicio 4</h3>
+<blockquote>
+<p>Obtener los productos que son más caros que la media del precio de los productos.</p>
+</blockquote>
+<h4 id="query-3">Query</h4>
+<pre><code class="language-python">    <span class="hljs-comment"># DataFrame</span>
+precio_promedio = df_purchases.agg(F.avg(<span class="hljs-string">'price'</span>)).collect()[<span class="hljs-number">0</span>][<span class="hljs-number">0</span>]
+
+df_purchases\
+.select(<span class="hljs-string">"product_id"</span>, <span class="hljs-string">"item_type"</span>, <span class="hljs-string">"price"</span>)\
+.where(F.col(<span class="hljs-string">"price"</span>).cast(<span class="hljs-string">"float"</span>) &gt; precio_promedio)\
+.orderBy(F.col(<span class="hljs-string">"price"</span>))\
+.show()
+
+<span class="hljs-comment"># SQL</span>
+df_purchases.createOrReplaceTempView(<span class="hljs-string">"purchases"</span>)
+sql = spark.sql(<span class="hljs-string">"""
+            SELECT product_id, item_type, price
+            FROM purchases
+            WHERE price &gt; (SELECT AVG(price) FROM purchases)
+            ORDER BY price ASC
+            """</span>)
+sql.show()
+</code></pre>
+<h4 id="resultados-3">Resultados</h4>
+<p><img src="file:////Users/lgutierrez/Proyectos/master-compartido/M1B1/AG1/images/4.png" alt="imagen"></p>
+<h4 id="respuesta-3">Respuesta</h4>
+<p style="
+margin-bottom: 100px;
+">Con una <strong>media de precio de 49.78</strong>, la imagen anterior muestra <strong>los primeros 20 productos</strong> cuyo valor es superior al valor medio.</p>
+<h3 id="ejercicio-5">Ejercicio 5</h3>
+<blockquote>
+<p>Indicar la tienda que ha vendido más productos.</p>
+</blockquote>
+<h4 id="query-4">Query</h4>
+<pre><code class="language-python">    <span class="hljs-comment"># DataFrame</span>
+df_purchases\
+.groupBy(<span class="hljs-string">"shop_id"</span>)\
+.count()\
+.orderBy(F.col(<span class="hljs-string">"count"</span>), ascending=<span class="hljs-literal">False</span>)\
+.limit(<span class="hljs-number">1</span>)\
+.show()
+
+<span class="hljs-comment"># SQL</span>
+df_purchases.createOrReplaceTempView(<span class="hljs-string">"purchases"</span>)
+sql = spark.sql(<span class="hljs-string">"""
+            SELECT shop_id, COUNT(*) AS count
+            FROM purchases
+            GROUP BY shop_id
+            ORDER BY count DESC
+            LIMIT 1
+            """</span>)
+sql.show()
+</code></pre>
+<h4 id="resultados-4">Resultados</h4>
+<p><img src="file:////Users/lgutierrez/Proyectos/master-compartido/M1B1/AG1/images/5.png" alt="imagen"></p>
+<h4 id="respuesta-4">Respuesta</h4>
+<p>La <strong>tienda 69</strong> lidera el ranking de ventas <strong>con un total de 47 transacciones</strong>.</p>
+<h3 id="ejercicio-6">Ejercicio 6</h3>
+<blockquote>
+<p>Indicar la tienda que ha facturado más dinero.</p>
+</blockquote>
+<h4 id="query-5">Query</h4>
+<pre><code class="language-python">    <span class="hljs-comment"># DataFrame</span>
+df_purchases\
+.groupBy(<span class="hljs-string">"shop_id"</span>)\
+.agg({<span class="hljs-string">"price"</span>: <span class="hljs-string">"sum"</span>})\
+.orderBy(F.col(<span class="hljs-string">"sum(price)"</span>), ascending=<span class="hljs-literal">False</span>)\
+.limit(<span class="hljs-number">1</span>)\
+.show()
+
+<span class="hljs-comment"># SQL</span>
+df_purchases.createOrReplaceTempView(<span class="hljs-string">"purchases"</span>)
+sql = spark.sql(<span class="hljs-string">"""
+            SELECT shop_id, ROUND(SUM(price), 2) AS sum
+            FROM purchases
+            GROUP BY shop_id
+            ORDER BY sum DESC
+            LIMIT 1
+            """</span>)
+sql.show()
+</code></pre>
+<h4 id="resultados-5">Resultados</h4>
+<p><img src="file:////Users/lgutierrez/Proyectos/master-compartido/M1B1/AG1/images/6.png" alt="imagen"></p>
+<h4 id="respuesta-5">Respuesta</h4>
+<p>Al igual que en el punto anterior es la <strong>tienda 69</strong> la que lidera el ranking de facturación, con un total de <strong>$2444.89</strong>.</p>
+<h3 id="ejercicio-7">Ejercicio 7</h3>
+<blockquote>
+<p>Dividir el mundo en 5 áreas geográficas iguales según la longitud (location.lon) y agregar una columna con el nombre del área geográfica
+Area1: - 180 a - 108, Area2: - 108 a - 36, Area3: - 36 a 36, Area4: 36 a 108, Area5: 108 a 180.</p>
+</blockquote>
+<h4 id="71">7.1</h4>
+<blockquote>
+<p>¿En qué área se utiliza más PayPal?</p>
+</blockquote>
+<h4 id="query-6">Query</h4>
+<pre><code class="language-python">    <span class="hljs-comment"># DataFrame</span>
+df_purchases\
+.withColumn(<span class="hljs-string">"area"</span>,
+            F.when(F.col(<span class="hljs-string">"location.lon"</span>).between(-<span class="hljs-number">180</span>, -<span class="hljs-number">108</span>), <span class="hljs-string">"Area1"</span>)
+            .when(F.col(<span class="hljs-string">"location.lon"</span>).between(-<span class="hljs-number">108</span>, -<span class="hljs-number">36</span>), <span class="hljs-string">"Area2"</span>)
+            .when(F.col(<span class="hljs-string">"location.lon"</span>).between(-<span class="hljs-number">36</span>, <span class="hljs-number">36</span>), <span class="hljs-string">"Area3"</span>)
+            .when(F.col(<span class="hljs-string">"location.lon"</span>).between(<span class="hljs-number">36</span>, <span class="hljs-number">108</span>), <span class="hljs-string">"Area4"</span>)
+            .when(F.col(<span class="hljs-string">"location.lon"</span>).between(<span class="hljs-number">108</span>, <span class="hljs-number">180</span>), <span class="hljs-string">"Area5"</span>)
+            .otherwise(<span class="hljs-string">"Area6"</span>)
+            )\
+.groupBy(F.col(<span class="hljs-string">"area"</span>), F.col(<span class="hljs-string">"payment_type"</span>))\
+.count()\
+.where(F.col(<span class="hljs-string">"payment_type"</span>) == <span class="hljs-string">"paypal"</span>)\
+.orderBy(F.col(<span class="hljs-string">"count"</span>), ascending=<span class="hljs-literal">False</span>)\
+.limit(<span class="hljs-number">1</span>)\
+.show()
+
+<span class="hljs-comment"># SQL</span>
+df_area = spark.sql(<span class="hljs-string">"""
+SELECT *,
+CASE
+    WHEN location.lon &gt;= -180 AND location.lon &lt; -108 THEN 'Area1'
+    WHEN location.lon &gt;= -108 AND location.lon &lt; -36 THEN 'Area2'
+    WHEN location.lon &gt;= -36 AND location.lon &lt; 36 THEN 'Area3'
+    WHEN location.lon &gt;= 36 AND location.lon &lt; 108 THEN 'Area4'
+    WHEN location.lon &gt;= 108 AND location.lon &lt;= 180 THEN 'Area5'
+    ELSE 'Area6' END
+AS area
+FROM purchases
+"""</span>)
+
+df_area.createOrReplaceTempView(<span class="hljs-string">"purchases_area"</span>)
+df_metodos_pago = spark.sql(<span class="hljs-string">"""
+                        SELECT  area,
+                                payment_type,
+                                count(payment_type) as count
+                        FROM purchases_area
+                        WHERE payment_type = 'paypal'
+                        GROUP BY area, payment_type
+                        SORT BY count DESC
+                        LIMIT 1
+                        """</span>)
+df_metodos_pago.show()
+</code></pre>
+<h4 id="resultados-6">Resultados</h4>
+<p><img src="file:////Users/lgutierrez/Proyectos/master-compartido/M1B1/AG1/images/7-1.png" alt="imagen"></p>
+<h4 id="respuesta-6">Respuesta</h4>
+<p>Es el <strong>Area4 (- 180 a - 108)</strong> donde paypal es el método de pago mas utilizado, con un total de <strong>241 transacciones</strong> completadas.</p>
+<h4 id="72">7.2</h4>
+<blockquote>
+<p>¿Cuáles son los 3 productos más comprados en cada área?</p>
+</blockquote>
+<h4 id="query-7">Query</h4>
+<pre style="
+font-size: smaller;
+"><code class="language-python" style="
+font-size: smaller;
+">    <span class="hljs-comment"># DataFrame</span>
+w = Window.partitionBy(<span class="hljs-string">"area"</span>)\
+.orderBy(F.col(<span class="hljs-string">"count"</span>).desc(), F.col(<span class="hljs-string">"product_id"</span>).desc())
+
+df_purchases\
+.withColumn(<span class="hljs-string">"area"</span>,
+            F.when(F.col(<span class="hljs-string">"location.lon"</span>).between(-<span class="hljs-number">180</span>, -<span class="hljs-number">108</span>), <span class="hljs-string">"Area1"</span>)
+            .when(F.col(<span class="hljs-string">"location.lon"</span>).between(-<span class="hljs-number">108</span>, -<span class="hljs-number">36</span>), <span class="hljs-string">"Area2"</span>)
+            .when(F.col(<span class="hljs-string">"location.lon"</span>).between(-<span class="hljs-number">36</span>, <span class="hljs-number">36</span>), <span class="hljs-string">"Area3"</span>)
+            .when(F.col(<span class="hljs-string">"location.lon"</span>).between(<span class="hljs-number">36</span>, <span class="hljs-number">108</span>), <span class="hljs-string">"Area4"</span>)
+            .when(F.col(<span class="hljs-string">"location.lon"</span>).between(<span class="hljs-number">108</span>, <span class="hljs-number">180</span>), <span class="hljs-string">"Area5"</span>)
+            .otherwise(<span class="hljs-string">"Area6"</span>)
+            )\
+.groupBy(F.col(<span class="hljs-string">"area"</span>), F.col(<span class="hljs-string">"product_id"</span>))\
+.count()\
+.withColumn(<span class="hljs-string">"rank"</span>, F.row_number().over(w))\
+.sort(F.col(<span class="hljs-string">"area"</span>).asc(), F.col(<span class="hljs-string">"rank"</span>).asc())\
+.where(F.col(<span class="hljs-string">"rank"</span>) &lt;= <span class="hljs-number">3</span>)\
+.show()
+
+<span class="hljs-comment"># SQL</span>
+df_purchases.createOrReplaceTempView(<span class="hljs-string">"purchases"</span>)
+sql = spark.sql(<span class="hljs-string">"""
+WITH base AS (
+SELECT
+    product_id,
+    CASE
+        WHEN location.lon BETWEEN -180 and -108 THEN "Area1"
+        WHEN location.lon BETWEEN -108 and -36 THEN "Area2"
+        WHEN location.lon BETWEEN -36 and 36 THEN "Area3"
+        WHEN location.lon BETWEEN 36 and 108 THEN "Area4"
+        WHEN location.lon BETWEEN 108 and 180 THEN "Area5"
+        ELSE "Area6"
+    END AS area,
+    COUNT(1) AS count
+FROM purchases
+GROUP BY product_id, area
+), ranking AS (
+SELECT  area,
+product_id,
+count,
+ROW_NUMBER() OVER (PARTITION BY area ORDER BY count DESC, product_id DESC) AS rank
+FROM base
+)
+SELECT * from ranking
+WHERE rank &lt;= 3
+ORDER BY area ASC, rank ASC
+"""</span>)
+sql.show()
+</code></pre>
+<h4 id="resultados-7">Resultados</h4>
+<p><img src="file:////Users/lgutierrez/Proyectos/master-compartido/M1B1/AG1/images/7-2.png" alt="imagen"></p>
+<h4 id="respuesta-7">Respuesta</h4>
+<p>La imagen anterior muestra los productos mas solicitados en cada una de las 5 Areas definidas.</p>
+<h4 id="73">7.3</h4>
+<blockquote>
+<p>¿Qué área ha facturado menos dinero?</p>
+</blockquote>
+<h4 id="query-8">Query</h4>
+<pre><code class="language-python">    <span class="hljs-comment"># DataFrame</span>
+df_purchases\
+.withColumn(<span class="hljs-string">"area"</span>,
+            F.when(F.col(<span class="hljs-string">"location.lon"</span>).between(-<span class="hljs-number">180</span>, -<span class="hljs-number">108</span>), <span class="hljs-string">"Area1"</span>)
+            .when(F.col(<span class="hljs-string">"location.lon"</span>).between(-<span class="hljs-number">108</span>, -<span class="hljs-number">36</span>), <span class="hljs-string">"Area2"</span>)
+            .when(F.col(<span class="hljs-string">"location.lon"</span>).between(-<span class="hljs-number">36</span>, <span class="hljs-number">36</span>), <span class="hljs-string">"Area3"</span>)
+            .when(F.col(<span class="hljs-string">"location.lon"</span>).between(<span class="hljs-number">36</span>, <span class="hljs-number">108</span>), <span class="hljs-string">"Area4"</span>)
+            .when(F.col(<span class="hljs-string">"location.lon"</span>).between(<span class="hljs-number">108</span>, <span class="hljs-number">180</span>), <span class="hljs-string">"Area5"</span>)
+            .otherwise(<span class="hljs-string">"Area6"</span>)
+            )\
+.groupBy(F.col(<span class="hljs-string">"area"</span>))\
+.<span class="hljs-built_in">sum</span>(<span class="hljs-string">"price"</span>)\
+.withColumn(<span class="hljs-string">"sum(price)"</span>, F.<span class="hljs-built_in">round</span>(F.col(<span class="hljs-string">"sum(price)"</span>), <span class="hljs-number">2</span>))\
+.orderBy(F.col(<span class="hljs-string">"sum(price)"</span>))\
+.limit(<span class="hljs-number">1</span>)\
+.show()
+
+
+<span class="hljs-comment"># SQL</span>
+df_purchases.createOrReplaceTempView(<span class="hljs-string">"purchases"</span>)
+df_facturacion = spark.sql(<span class="hljs-string">"""
+        SELECT
+            CASE
+                WHEN location.lon BETWEEN -180 and -108 THEN "Area1"
+                WHEN location.lon BETWEEN -108 and -36 THEN "Area2"
+                WHEN location.lon BETWEEN -36 and 36 THEN "Area3"
+                WHEN location.lon BETWEEN 36 and 108 THEN "Area4"
+                WHEN location.lon BETWEEN 108 and 180 THEN "Area5"
+                ELSE "Area6"
+            END AS area,
+            ROUND(SUM(price), 2) AS venta
+        FROM purchases
+        GROUP BY area
+        ORDER BY venta asc
+        LIMIT 1
+        """</span>)
+df_facturacion.show()
+</code></pre>
+<h4 id="resultados-8">Resultados</h4>
+<p><img src="file:////Users/lgutierrez/Proyectos/master-compartido/M1B1/AG1/images/7-3.png" alt="imagen"></p>
+<h4 id="respuesta-8">Respuesta</h4>
+<p style="
+margin-bottom: 100px;
+">El <strong>Area3</strong> es la que menos facturó según los datos con los que se cuentan. Con un total de <strong>$32213.5</strong>.</p>
+<h3 id="ejercicio-8">Ejercicio 8</h3>
+<blockquote>
+<p>Indicar los productos que no tienen stock suficiente para las compras realizadas.</p>
+</blockquote>
+<h4 id="query-9">Query</h4>
+<pre><code class="language-python">   <span class="hljs-comment"># DataFrame</span>
+df_purchase_vs_stock = df_purchases.groupby(<span class="hljs-string">"product_id"</span>)\
+.count()\
+.join(df_stock, on=<span class="hljs-string">"product_id"</span>)
+df_purchase_vs_stock.<span class="hljs-built_in">filter</span>(<span class="hljs-string">"count&gt;quantity"</span>).show()
+
+<span class="hljs-comment"># SQL</span>
+df_purchases.createOrReplaceTempView(<span class="hljs-string">"purchases"</span>)
+df_stock.createOrReplaceTempView(<span class="hljs-string">"stock"</span>)
+sql = spark.sql(<span class="hljs-string">"""
+            WITH ventas AS(
+                SELECT product_id, COUNT(1) venta
+                FROM purchases
+                GROUP BY product_id
+            )
+            SELECT v.product_id, v.venta, s.quantity
+            FROM ventas v
+            INNER JOIN stock s ON s.product_id = v.product_id
+            WHERE venta &gt; quantity
+            """</span>)
+sql.show()
+</code></pre>
+<h4 id="resultados-9">Resultados</h4>
+<p><img src="file:////Users/lgutierrez/Proyectos/master-compartido/M1B1/AG1/images/8.png" alt="imagen"></p>
+<h4 id="respuesta-9">Respuesta</h4>
+<p>Se puede apreciar en los resultados que <strong>3 de los productos no tienen stock suficiente para suplir la demanda</strong>. Los mismos tienen los ids: <strong>29, 1 y 37</strong></p>
+
+    <script async="" src="https://cdn.jsdelivr.net/npm/katex-copytex@latest/dist/katex-copytex.min.js"></script>
+    
+
+</body></html>
