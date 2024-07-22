@@ -2,7 +2,7 @@
 title: 'Modulo 3: Data Management & Data Digital'
 author: "Leandro Gutierrez"
 date: "20/07/2024"
-output: pdf_document
+output: html_document
 subtitle: 'Preparar datos de Facebook por país'
 ---
 
@@ -52,85 +52,373 @@ Los datos a preparar están contenidos en la tabla FACEBOOK_2010_2018_RAW.csv.
 ## Apartado 1
 ### Carga de los datos
 ```{r}
+# leemos los datos utilizando `read.csv`
 data <- read.csv(url("https://raw.githubusercontent.com/griu/mbdds_fc20/master/gestion_datos/www/Facebook_10_18_raw.csv"), 
                 sep = ";")
 
+# creamos un dataframe tibble a partir de los datos
 df <- as_tibble(data)
 ```
 
 ### Visualización
-```{r echo=FALSE, results='hide', warning=FALSE}
+```{r echo=FALSE, results='hide', warning=FALSE, fig.pos='H'}
 kable(df %>% head(10), "html", booktabs=TRUE) %>%
-  kable_styling(bootstrap_options=c("striped", "hover", "condensed", "responsive")
-  ,font_size = 15,full_width = T) %>%
-  save_kable("/Users/lgutierrez/Proyectos/master/M3/A3/temp/df.png")
+    kable_styling(bootstrap_options=c("striped", "hover", "condensed", "responsive")
+    ,font_size = 15,full_width = T) %>%
+    save_kable("temp/df.png")
 ```
-![df](temp/df.png){width=700px}
+![img-1](temp/df.png){width=700px}
 
 ### Respuesta
 No es un conjunto de datos ordenado puesto que cada fila no representa el total características de una observación. 
-Podemos observar que dentro de la variable `indicador`, estan presentes las variables `anio` y `variable` apiñadas. Debemos splitear la columna indicador para  obtener un conjunto de datos ordenado.
+Podemos observar que dentro de la variable `indicador`, estan presentes las variables `anio` y `variable` apiñadas. Para lograr un conjunto de datos ordenados:
+- Debemos splitear la columna `indicador` en dos nuevas, una representando `anio` y la otra `variable`.
+- Luego convertir cada valor posible de la nueva columna `variable` a una columna por si misma.
 
 ## Apartado 2
+Para lograr separar los valores del campo `indicador` utilizaremos la librería `dlpyr` y la función `separate`, teniendo en cuenta que el caracter que se usa de concatenación en este caso fué `|` (pipe).
 ```{r}
+# creamos un dataframe auxiliar con el split solicitado
 df_aux <- df %>%
     separate(indicador, into = c("anyo", "variable"), sep = "\\|")
 ```
 
-```{r echo=FALSE, results='hide', warning=FALSE}
+```{r echo=FALSE, results='hide', warning=FALSE, fig.pos='H'}
 kable(df_aux %>% head(10), "html", booktabs=TRUE) %>%
-  kable_styling(bootstrap_options=c("striped", "hover", "condensed", "responsive")
-  ,font_size = 15,full_width = T) %>%
-  save_kable("/Users/lgutierrez/Proyectos/master/M3/A3/temp/df_aux.png")
+    kable_styling(bootstrap_options=c("striped", "hover", "condensed", "responsive")
+    ,font_size = 15,full_width = T) %>%
+    save_kable("temp/df_aux.png")
 ```
-![df_aux](temp/df_aux.png){width=700px}
+![img-2](temp/df_aux.png){width=700px}
 
 Veamos los valores que toman estas nuevas variables y sus respectivas frecuencias:
-Primero analicemos la variable `anyo`:
-```{r echo=FALSE, results='hide', warning=FALSE}
-kable(df_aux %>% group_by(anyo) %>% summarise(count = n()), "html", booktabs=TRUE) %>%
-  kable_styling(bootstrap_options=c("striped", "hover", "condensed", "responsive")
-  ,font_size = 15,full_width = T) %>%
-  save_kable("/Users/lgutierrez/Proyectos/master/M3/A3/temp/frec_anyo.png")
-```
-![frec_anyo](temp/frec_anyo.png){width=700px}
 
-Veamos ahora la columna `variable`: 
-```{r echo=FALSE, results='hide', warning=FALSE}
-kable(df_aux %>% group_by(variable) %>% summarise(count = n()), "html", booktabs=TRUE) %>%
-  kable_styling(bootstrap_options=c("striped", "hover", "condensed", "responsive")
-  ,font_size = 15,full_width = T) %>%
-  save_kable("/Users/lgutierrez/Proyectos/master/M3/A3/temp/frec_var.png")
+#### Anyo
+Frecuencias de la columna `anyo`:
+
+```{r echo=FALSE, results='hide', warning=FALSE, fig.pos='H'}
+kable(df_aux %>% group_by(anyo) %>% summarise(count = n()), "html", booktabs=TRUE) %>%
+    kable_styling(bootstrap_options=c("striped", "hover", "condensed", "responsive")
+    ,font_size = 15,full_width = T) %>%
+    save_kable("temp/frec_anyo.png")
 ```
-![frec_var](temp/frec_var.png){width=700px}
+![img-3](temp/frec_anyo.png){width=700px}
+
+#### Variable
+Frecuencias de la columna `variable`: 
+
+```{r echo=FALSE, results='hide', warning=FALSE, fig.pos='H'}
+kable(df_aux %>% group_by(variable) %>% summarise(count = n()), "html", booktabs=TRUE) %>%
+    kable_styling(bootstrap_options=c("striped", "hover", "condensed", "responsive")
+    ,font_size = 15,full_width = T) %>%
+    save_kable("temp/frec_var.png")
+```
+![img-4](temp/frec_var.png){width=700px}
+
+Podemos apreciar que ambas frecuencias acumuladas dan **468** elementos.
 
 ## Apartado 3
 Agregaremos nuestro dataset por pais y aplicaremos una función `count()` para determinar la cantidad de ocurrencias. Vemos que algunos paises no cumplen la condición de frecuencia igual 6. Por lo tanto, debemos investigar y determinar cuales y por que no cumplen la condición esperada:
-```{r echo=FALSE, results='hide', warning=FALSE}
-kable(df_count %>% filter(n != 6), "html", booktabs=TRUE) %>%
-  kable_styling(bootstrap_options=c("striped", "hover", "condensed", "responsive")
-  ,font_size = 15,full_width = T) %>%
-  save_kable("/Users/lgutierrez/Proyectos/master/M3/A3/temp/df_count.png")
+
+```{r echo=FALSE, results='hide', warning=FALSE, fig.pos='H'}
+kable(df_aux %>% count(pais) %>% filter(n != 6), "html", booktabs=TRUE) %>%
+    kable_styling(bootstrap_options=c("striped", "hover", "condensed", "responsive")
+    ,font_size = 15,full_width = T) %>%
+    save_kable("temp/df_count.png")
 ```
-![df_count](temp/df_count.png){width=700px}
+![img-5](temp/df_count.png){width=700px}
+
+Podemos asumir que un mapeo no homogeneo de las claves produjeron la inconsistencia en el conteo. Además observando podemos intuir el problema:
+$$
+\begin{aligned}
+    Arab\ Rep.\ Egypt &= Egypt,\ Arab Rep. \\
+    Rep.\ Yemen &= Yemen,\ Rep. \\
+    Russian &= Russian\ Federation
+\end{aligned}
+$$
+
+Debemos codificar de manera que nuestras claves estén etiquetadas de manera uniforme y cumplir con los requerimientos iniciales. Para ello crearemos una columna auxiliar donde estará el nuevo valor codificado de la variable `pais`
 
 ```{r}
-df %>% filter(pais == 'Taiwan')
+# declaramos nuestro funcion de mapeo
+mapear <- function(pais) {
+    if (pais == 'Egypt, Arab Rep.'){
+        return('Arab Rep. Egypt')
+    } else if(pais == 'Yemen, Rep.'){
+        return('Rep. Yemen')
+    }else if(pais == 'Russian'){
+        return('Russian Federation')
+    }
+    return(pais)
+}
 
-df[df$pais == 'Taiwan',]
+# creamos una nueva columna con el resultado de aplicar la funcion `mapear` a cada elemento de la columna `pais`
+df_aux$pais_r <- sapply(as.vector(df_aux$pais), mapear)
+```
+
+Controlamos ahora que no existan valores de frecuencia que no coinciden con el criterio deseado, para ello agrupamos nuestro dataset por la nueva variable `pais_r` y checkeamos los conteos que no coincida con 6:
+
+```{r echo=FALSE, results='hide', warning=FALSE, fig.pos='H'}
+# listamos los registros que agrupados por `pais_r` no acumulan 6 elementos
+df_aux %>% count(pais_r) %>% filter(n != 6)
+```
+
+Observamos que ahora todos nuestros registros agrupados por `pais_r` poseen 6 elementos, veamos algunas frecuencias:
+
+```{r echo=FALSE, results='hide', warning=FALSE, fig.pos='H'}
+kable(df_aux %>% count(pais_r) %>% filter(n == 6) %>% head(15), "html", booktabs=TRUE) %>%
+    kable_styling(bootstrap_options=c("striped", "hover", "condensed", "responsive")
+    ,font_size = 15,full_width = T) %>%
+    save_kable("temp/df_count_new-6.png")
+```
+![img-7](temp/df_count_new-6.png){width=700px}
+
+Observamos que entre los datos devueltos está el valor `Arab Rep. Egypt`, uno de los cuales fue limpiado y unificado mediante nuestra función `mapear`, podemos decir que cumplimos el objetivo de homogeneizarr los valores de nuestra variable `pais_r`.
+
+## Apartado 4
+Primero veamos los datos ordenados por la nueva variable `pais_r`
+```{r echo=FALSE, results='hide', warning=FALSE, fig.pos='H'}
+kable(df_aux %>% arrange(pais_r) %>% head(15), "html", booktabs=TRUE) %>%
+    kable_styling(bootstrap_options=c("striped", "hover", "condensed", "responsive")
+    ,font_size = 15,full_width = T) %>%
+    save_kable("temp/df_aux-1.png")
+```
+![img-8](temp/df_aux-1.png){width=700px}
+
+Utilizaremos un dataframe auxiliar y pivotaremos sobre la columna `variable` para lograr un conjunto de datos ordenado, en este proceso excluimos la columna original `pais` para evitar problemas de agrupación:
+```{r}
+# declaramos un nuevo dataframe donde excluimos la columna `pais` original y pivoteamos sobre la columna `variable`
+df_wide <- df_aux %>%
+    select(-pais) %>%
+    pivot_wider(names_from = variable, values_from = valor)
+```
+
+Vemos nuevamente nuestro dataset:
+
+```{r echo=FALSE, results='hide', warning=FALSE, fig.pos='H'}
+kable(df_wide %>% arrange(pais_r) %>% head(15), "html", booktabs=TRUE) %>%
+    kable_styling(bootstrap_options=c("striped", "hover", "condensed", "responsive")
+    ,font_size = 15,full_width = T) %>%
+    save_kable("temp/df_wide.png")
+```
+![img-9](temp/df_wide.png){width=700px}
+
+Una vez se ha ordenado una tabla en observaciones y variables, el siguiente paso es mejorar la calidad del contenido de estas variables.
+
+## Apartado 5 y Apartado 6
+Necesitamos ahora crear 3 nuevas columnas limpiando y transformando las columnas antes generadas `Facebook`, `Internet_por` y `poblacion`. Primero utlizamos la funcion `glimpse()` para ver el estado actual de nuestro dataframe:
+
+```{r}
+# visualizamos nuestro dataframe
+glimpse(df_wide)
+```
+
+Como vemos las variables  `Facebook`, `Internet_por` y `poblacion` son actualmente de tipo `character` (chr), analicemos entonces cada columna para saber que trabajos son necesarios:
+
+#### Facebook
+Crearemos una función `checkear_numeric` que devuelve TRUE o FALSE dependiendo de si el valor analizado puede o no ser casteado a numeric:
+```{r}
+# declaramos la función de checkeo
+checkear_numeric <- function(val) {
+  # intentamos convertir a numeric
+  numeric <- suppressWarnings(as.numeric(val))
+  
+  # devolvemos T o F
+  return(is.na(numeric))
+}
+```
+Buscamos si existen valores que no podrán ser casteados a `numeric` para la variable `Facebook`, para ello utilizaremos una columna auxiliar que nos indicará si el valor tomado es o no problemático: 
+
+```{r}
+# creamos una nueva columna con posibles casos problematicos
+df_wide$facebook_prob <- sapply(df_wide$Facebook, checkear_numeric)
+
+# checkeamos los casos problematicos
+df_wide %>% filter(facebook_prob == T)
+```
+
+Podemos ver que no existen campos problematicos para la variable `Facebook`, podemos proceder con la conversión de tipo de dato
+
+```{r}
+# creamos una nueva columna `facebook_num` con valores tipo numeric
+df_wide <- df_wide %>% mutate(
+    facebook_num = as.numeric(Facebook)
+)
+```
+
+#### Poblacion
+Hacemos el mismo análisis para la variable `poblacion`
+
+```{r}
+# creamos una nueva columna con posibles casos problematicos
+df_wide$poblacion_prob <- sapply(df_wide$poblacion, checkear_numeric)
+
+# checkeamos los casos problematicos
+df_wide %>% filter(poblacion_prob == T)
+```
+
+En este caso podemos observar que dos valores tendrán problemas de casteo si fuesemos a convertirlos de manera directa:
+
+- 23.140,95
+- 23.580,08
+
+Observamos que el problema de casteo viene dado por como están representados los numeros, es decir, estos dos valores problemáticos utilizan el caracter `.` como separador de miles mientras que el caracter `,` como separador decimal. Ambos valores debería ser:
+
+- 23140.95
+- 23580.08
+
+Respectivamente, para poder ser casteables a numeric sin problemas.
+
+Crearemos una función `limpiar_numeric` para eliminar el caracter `.` (punto) y luego reemplazar `,` (coma) por `.`, quedando un valor tipo `char` casteable a numeric.
+
+```{r}
+# declaramos la funcion
+limpiar_numeric <- function(x) {
+    # eliminamos puntos
+    gsub("\\.", "", x) %>%
+    # reemplazamos coma por punto
+    gsub(",", ".", .)
+}
+
+# aplicamos la funcion limpiar a todos los valores del campo poblacion
+df_wide$poblacion_r <- sapply(df_wide$poblacion, limpiar_numeric)
+```
+
+Volvemos a checkear posibles casos problematicos
+
+```{r}
+# OJO: reutilizamos columna de control
+df_wide$poblacion_prob <- sapply(df_wide$poblacion_r, checkear_numeric)
+
+# checkeamos los casos problematicos
+df_wide %>% select(pais_r, anyo, poblacion, poblacion_prob, poblacion_r) %>% filter(poblacion_prob == T)
+```
+
+Habiendo corregido los posibles casos problematicos para la variable `poblacion` en una nueva columna llamada `poblacion_r`, procedemos a crear nuestra nueva columna de tipo de dato numerico con datos sanitizados:
+
+```{r}
+# creamos una nueva columna `poblacion_num` con valores tipo numeric
+df_wide <- df_wide %>% mutate(
+    poblacion_num = as.numeric(poblacion_r)
+)
+```
+
+Además durante el ejercicio notamos que los numeros son demasiado pequeños para representar poblaciones de paises, habiando tomado como puntos de control Estados Unidos (United States) y España (Spain) vemos: 
+
+```{r}
+df_wide %>% select(pais_r, anyo, poblacion_num) %>% filter(pais_r %in% c('Spain', 'United States'))
+```
+
+Haciendo una pequeña investigación nos damos cuenta que a los valores obtenidos de `poblacion_num` necesitamos multiplicarlos por 1000 para que coincidan con los registros públicos para ambos paises en ambos años. Suponemos el dato original `201X|poblacion` estaba expresado en miles de personas. 
+
+```{r}
+# corregimos los valores para la variable poblacion_num
+df_wide <- df_wide %>% mutate(
+    poblacion_num = poblacion_num * 1000
+)
+```
+
+Controlamos lo datos para Estados Unidos y España:
+
+```{r}
+df_wide %>% select(pais_r, anyo, poblacion_num) %>% filter(pais_r %in% c('Spain', 'United States'))
+```
+
+#### Internet_por
+Ahora haremos el mismo análisis para la variable `Internet_por`:
+
+```{r}
+# creamos una nueva columna con posibles casos problematicos
+df_wide$internet_prob <- sapply(df_wide$Internet_por, checkear_numeric)
+
+# checkeamos los casos problematicos
+df_wide %>% select(pais_r, anyo, Internet_por, internet_prob) %>% filter(internet_prob == T)
+```
+
+Vemos que en éste caso los valores problemáticos son 116, vamos a sanitizarlos
+```{r}
+# aplicamos la funcion limpiar a todos los valores del campo poblacion
+df_wide$internet_r <- sapply(df_wide$Internet_por, limpiar_numeric)
 ```
 
 ```{r}
-df %>% filter(is.na(df$valor))
+# OJO: reutilizamos columna de control
+df_wide$internet_prob <- sapply(df_wide$internet_r, checkear_numeric)
 
-df[is.na(df$valor), ]
+# checkeamos los casos problematicos
+df_wide %>% select(pais_r, anyo, Internet_por, internet_prob, internet_r) %>% filter(internet_prob == T) 
 ```
+
+Podemos apreciar un caso problemático restante: el valor de `Internet_por` para **Taiwan** en el año **2010**. Se toma la determinación de poner dicho valor en `0` ya que no será objeto de estudio en este trabajo práctico:
 
 ```{r}
-colnames(df)[colnames(df)=="pais"] <- "id"
+# corregimos el valor mencionado
+df_wide <- df_wide %>% 
+  mutate(internet_r = ifelse(pais_r == 'Taiwan' & anyo == '2010', 1, internet_r))
+
+# vemos nuevamente el dataframe y el dato manipulado
+df_wide %>% select(pais_r, anyo, Internet_por, internet_prob, internet_r) %>% filter(internet_prob == T) 
 ```
 
+Habiendo corregido los posibles casos problematicos para la variable `Internet_por` en una nueva columna llamada `internet_r`, procedemos a crear nuestra nueva columna de tipo de dato numerico con datos sanitizados:
+
 ```{r}
-df_aux <- df %>% mutate(valor_isna = (is.na(valor)))
-df_aux %>% filter(valor_isna == T)
+# creamos una nueva columna `internet_por_num` con valores tipo numeric
+df_wide <- df_wide %>% mutate(
+    internet_por_num = as.numeric(internet_r)
+)
 ```
+
+Vemos el resultado de nuestra manipulación para el pais **Taiwan** y el año **2010**:
+
+```{r}
+# seleccionamos los registros del pais `Taiwan`
+df_wide %>% select(pais_r, anyo, facebook_num, poblacion_num, internet_por_num) %>% filter(pais_r == 'Taiwan')
+```
+
+Imprimimos nuestro dataset sanitizado, transformado y ordenado
+```{r echo=FALSE, results='hide', warning=FALSE, fig.pos='H'}
+kable(df_wide %>% select(pais_r, anyo, facebook_num, poblacion_num, internet_por_num) %>% arrange(pais_r) %>% head(25), "html", booktabs=TRUE) %>%
+    kable_styling(bootstrap_options=c("striped", "hover", "condensed", "responsive")
+    ,font_size = 15,full_width = T) %>%
+    save_kable("temp/df_wide_final.png")
+```
+![img-10](temp/df_wide_final.png){width=700px}
+
+## Apartado 7
+Para determinar el nivel de penetración de Facebook en España (Spain) debemos mirar que valores tomó nuesto grupo objetivo durante el tiempo:
+```{r echo=FALSE, results='hide', warning=FALSE, fig.pos='H'}
+kable(df_wide %>% select(pais_r, anyo, facebook_num, poblacion_num, internet_por_num) %>% filter(pais_r == 'Spain'), "html", booktabs=TRUE) %>%
+    kable_styling(bootstrap_options=c("striped", "hover", "condensed", "responsive")
+    ,font_size = 15,full_width = T) %>%
+    save_kable("temp/spain.png")
+```
+![img-11](temp/spain.png){width=700px}
+
+Tenemos que saber que segmento del total de población es **usuaria de internet** para luego establecer de ese conjunto objetivo, cuantos son usuarios de Facebook. Ya que para calcular el nivel de penetración del producto solo **consideramos posibles usuarios a toda aquella persona que tenga acceso a internet**.
+
+```{r}
+# creamos dos nuevas variables para ayudar a nuestro análisis
+df_wide <- df_wide %>% mutate(
+    poblacion_internet = poblacion_num * internet_por_num / 100,
+    poblacion_internet_facebook = facebook_num * 100 / (poblacion_num * internet_por_num / 100)
+)
+
+# creamos la imagen
+kable(df_wide %>% select(pais_r, anyo, facebook_num, poblacion_num, internet_por_num, poblacion_internet) %>% filter(pais_r == 'Spain'), "html", booktabs=TRUE) %>%
+    kable_styling(bootstrap_options=c("striped", "hover", "condensed", "responsive")
+    ,font_size = 15,full_width = T) %>%
+    save_kable("temp/spain_new.png")
+```
+![img-12](temp/spain_new.png){width=700px}
+
+```{r}
+kable(df_wide %>% select(pais_r, anyo, poblacion_internet_facebook) %>% filter(pais_r == 'Spain'), "html", booktabs=TRUE) %>%
+    kable_styling(bootstrap_options=c("striped", "hover", "condensed", "responsive")
+    ,font_size = 15,full_width = T) %>%
+    save_kable("temp/spain_penetration.png")
+```
+![img-13](temp/spain_penetration.png){width=700px}
+
+### Penetración de Facebook en España entre 2010 y 2018
+Podemos observar que la penetración del producto Facebook fué creciente entre los años 2010 y 2018 en España, donde pasó de un 34.6% de la base de usuarios totales de internet en el año 2010, a un 57.2% en el año 2018. Creciendo la masa total de usuarios de 10610080 a 23000000, un 116.7% de aumento en 4 años.
