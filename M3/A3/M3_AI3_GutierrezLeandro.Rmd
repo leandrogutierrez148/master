@@ -65,9 +65,9 @@ df <- as_tibble(data)
 kable(df %>% head(10), "html", booktabs=TRUE) %>%
     kable_styling(bootstrap_options=c("striped", "hover", "condensed", "responsive")
     ,font_size = 15,full_width = T) %>%
-    save_kable("temp/df.png")
+    save_kable("/Users/lgutierrez/Proyectos/master/M3/A3/temp/df.png")
 ```
-![img-1](temp/df.png){width=700px}
+![img-1](/Users/lgutierrez/Proyectos/master/M3/A3/temp/df.png){width=700px}
 
 ### Respuesta
 No es un conjunto de datos ordenado puesto que cada fila no representa el total características de una observación. 
@@ -87,9 +87,9 @@ df_aux <- df %>%
 kable(df_aux %>% head(10), "html", booktabs=TRUE) %>%
     kable_styling(bootstrap_options=c("striped", "hover", "condensed", "responsive")
     ,font_size = 15,full_width = T) %>%
-    save_kable("temp/df_aux.png")
+    save_kable("/Users/lgutierrez/Proyectos/master/M3/A3/temp/df_aux.png")
 ```
-![img-2](temp/df_aux.png){width=700px}
+![img-2](/Users/lgutierrez/Proyectos/master/M3/A3/temp/df_aux.png){width=700px}
 
 Veamos los valores que toman estas nuevas variables y sus respectivas frecuencias:
 
@@ -100,9 +100,9 @@ Frecuencias de la columna `anyo`:
 kable(df_aux %>% group_by(anyo) %>% summarise(count = n()), "html", booktabs=TRUE) %>%
     kable_styling(bootstrap_options=c("striped", "hover", "condensed", "responsive")
     ,font_size = 15,full_width = T) %>%
-    save_kable("temp/frec_anyo.png")
+    save_kable("/Users/lgutierrez/Proyectos/master/M3/A3/temp/frec_anyo.png")
 ```
-![img-3](temp/frec_anyo.png){width=700px}
+![img-3](/Users/lgutierrez/Proyectos/master/M3/A3/temp/frec_anyo.png){width=700px}
 
 #### Variable
 Frecuencias de la columna `variable`: 
@@ -111,9 +111,9 @@ Frecuencias de la columna `variable`:
 kable(df_aux %>% group_by(variable) %>% summarise(count = n()), "html", booktabs=TRUE) %>%
     kable_styling(bootstrap_options=c("striped", "hover", "condensed", "responsive")
     ,font_size = 15,full_width = T) %>%
-    save_kable("temp/frec_var.png")
+    save_kable("/Users/lgutierrez/Proyectos/master/M3/A3/temp/frec_var.png")
 ```
-![img-4](temp/frec_var.png){width=700px}
+![img-4](/Users/lgutierrez/Proyectos/master/M3/A3/temp/frec_var.png){width=700px}
 
 Podemos apreciar que ambas frecuencias acumuladas dan **468** elementos.
 
@@ -124,9 +124,9 @@ Agregaremos nuestro dataset por pais y aplicaremos una función `count()` para d
 kable(df_aux %>% count(pais) %>% filter(n != 6), "html", booktabs=TRUE) %>%
     kable_styling(bootstrap_options=c("striped", "hover", "condensed", "responsive")
     ,font_size = 15,full_width = T) %>%
-    save_kable("temp/df_count.png")
+    save_kable("/Users/lgutierrez/Proyectos/master/M3/A3/temp/df_count.png")
 ```
-![img-5](temp/df_count.png){width=700px}
+![img-5](/Users/lgutierrez/Proyectos/master/M3/A3/temp/df_count.png){width=700px}
 
 Podemos asumir que un mapeo no homogeneo de las claves produjeron la inconsistencia en el conteo. Además observando podemos intuir el problema:
 $$
@@ -169,9 +169,9 @@ Observamos que ahora todos nuestros registros agrupados por `pais_r` poseen 6 el
 kable(df_aux %>% count(pais_r) %>% filter(n == 6) %>% head(15), "html", booktabs=TRUE) %>%
     kable_styling(bootstrap_options=c("striped", "hover", "condensed", "responsive")
     ,font_size = 15,full_width = T) %>%
-    save_kable("temp/df_count_new-6.png")
+    save_kable("/Users/lgutierrez/Proyectos/master/M3/A3/temp/df_count_new-6.png")
 ```
-![img-7](temp/df_count_new-6.png){width=700px}
+![img-7](/Users/lgutierrez/Proyectos/master/M3/A3/temp/df_count_new-6.png){width=700px}
 
 Observamos que entre los datos devueltos está el valor `Arab Rep. Egypt`, uno de los cuales fue limpiado y unificado mediante nuestra función `mapear`, podemos decir que cumplimos el objetivo de homogeneizarr los valores de nuestra variable `pais_r`.
 
@@ -181,9 +181,9 @@ Primero veamos los datos ordenados por la nueva variable `pais_r`
 kable(df_aux %>% arrange(pais_r) %>% head(15), "html", booktabs=TRUE) %>%
     kable_styling(bootstrap_options=c("striped", "hover", "condensed", "responsive")
     ,font_size = 15,full_width = T) %>%
-    save_kable("temp/df_aux-1.png")
+    save_kable("/Users/lgutierrez/Proyectos/master/M3/A3/temp/df_aux-1.png")
 ```
-![img-8](temp/df_aux-1.png){width=700px}
+![img-8](/Users/lgutierrez/Proyectos/master/M3/A3/temp/df_aux-1.png){width=700px}
 
 Utilizaremos un dataframe auxiliar y pivotaremos sobre la columna `variable` para lograr un conjunto de datos ordenado, en este proceso excluimos la columna original `pais` para evitar problemas de agrupación:
 ```{r}
@@ -191,6 +191,8 @@ Utilizaremos un dataframe auxiliar y pivotaremos sobre la columna `variable` par
 df_wide <- df_aux %>%
     select(-pais) %>%
     pivot_wider(names_from = variable, values_from = valor)
+
+df_wide
 ```
 
 Vemos nuevamente nuestro dataset:
@@ -199,9 +201,9 @@ Vemos nuevamente nuestro dataset:
 kable(df_wide %>% arrange(pais_r) %>% head(15), "html", booktabs=TRUE) %>%
     kable_styling(bootstrap_options=c("striped", "hover", "condensed", "responsive")
     ,font_size = 15,full_width = T) %>%
-    save_kable("temp/df_wide.png")
+    save_kable("/Users/lgutierrez/Proyectos/master/M3/A3/temp/df_wide.png")
 ```
-![img-9](temp/df_wide.png){width=700px}
+![img-9](/Users/lgutierrez/Proyectos/master/M3/A3/temp/df_wide.png){width=700px}
 
 Una vez se ha ordenado una tabla en observaciones y variables, el siguiente paso es mejorar la calidad del contenido de estas variables.
 
@@ -381,9 +383,9 @@ Imprimimos nuestro dataset sanitizado, transformado y ordenado
 kable(df_wide %>% select(pais_r, anyo, facebook_num, poblacion_num, internet_por_num) %>% arrange(pais_r) %>% head(25), "html", booktabs=TRUE) %>%
     kable_styling(bootstrap_options=c("striped", "hover", "condensed", "responsive")
     ,font_size = 15,full_width = T) %>%
-    save_kable("temp/df_wide_final.png")
+    save_kable("/Users/lgutierrez/Proyectos/master/M3/A3/temp/df_wide_final.png")
 ```
-![img-10](temp/df_wide_final.png){width=700px}
+![img-10](/Users/lgutierrez/Proyectos/master/M3/A3/temp/df_wide_final.png){width=700px}
 
 ## Apartado 7
 Para determinar el nivel de penetración de Facebook en España (Spain) debemos mirar que valores tomó nuesto grupo objetivo durante el tiempo:
@@ -391,34 +393,34 @@ Para determinar el nivel de penetración de Facebook en España (Spain) debemos 
 kable(df_wide %>% select(pais_r, anyo, facebook_num, poblacion_num, internet_por_num) %>% filter(pais_r == 'Spain'), "html", booktabs=TRUE) %>%
     kable_styling(bootstrap_options=c("striped", "hover", "condensed", "responsive")
     ,font_size = 15,full_width = T) %>%
-    save_kable("temp/spain.png")
+    save_kable("/Users/lgutierrez/Proyectos/master/M3/A3/temp/spain.png")
 ```
-![img-11](temp/spain.png){width=700px}
+![img-11](/Users/lgutierrez/Proyectos/master/M3/A3/temp/spain.png){width=700px}
 
 Tenemos que saber que segmento del total de población es **usuaria de internet** para luego establecer de ese conjunto objetivo, cuantos son usuarios de Facebook. Ya que para calcular el nivel de penetración del producto solo **consideramos posibles usuarios a toda aquella persona que tenga acceso a internet**.
 
 ```{r}
 # creamos dos nuevas variables para ayudar a nuestro análisis
 df_wide <- df_wide %>% mutate(
-    poblacion_internet = poblacion_num * internet_por_num / 100,
-    poblacion_internet_facebook = facebook_num * 100 / (poblacion_num * internet_por_num / 100)
+    internet_num_r = poblacion_num * internet_por_num / 100,
+    facebook_por_internet_r = facebook_num * 100 / (poblacion_num * internet_por_num / 100)
 )
 
 # creamos la imagen
 kable(df_wide %>% select(pais_r, anyo, facebook_num, poblacion_num, internet_por_num, poblacion_internet) %>% filter(pais_r == 'Spain'), "html", booktabs=TRUE) %>%
     kable_styling(bootstrap_options=c("striped", "hover", "condensed", "responsive")
     ,font_size = 15,full_width = T) %>%
-    save_kable("temp/spain_new.png")
+    save_kable("/Users/lgutierrez/Proyectos/master/M3/A3/temp/spain_new.png")
 ```
-![img-12](temp/spain_new.png){width=700px}
+![img-12](/Users/lgutierrez/Proyectos/master/M3/A3/temp/spain_new.png){width=700px}
 
 ```{r}
 kable(df_wide %>% select(pais_r, anyo, poblacion_internet_facebook) %>% filter(pais_r == 'Spain'), "html", booktabs=TRUE) %>%
     kable_styling(bootstrap_options=c("striped", "hover", "condensed", "responsive")
     ,font_size = 15,full_width = T) %>%
-    save_kable("temp/spain_penetration.png")
+    save_kable("/Users/lgutierrez/Proyectos/master/M3/A3/temp/spain_penetration.png")
 ```
-![img-13](temp/spain_penetration.png){width=700px}
+![img-13](/Users/lgutierrez/Proyectos/master/M3/A3/temp/spain_penetration.png){width=700px}
 
 ### Penetración de Facebook en España entre 2010 y 2018
 Podemos observar que la penetración del producto Facebook fué creciente entre los años 2010 y 2018 en España, donde pasó de un 34.6% de la base de usuarios totales de internet en el año 2010, a un 57.2% en el año 2018. Creciendo la masa total de usuarios de 10610080 a 23000000, un 116.7% de aumento en 4 años.
