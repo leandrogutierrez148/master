@@ -1,0 +1,172 @@
+---
+title: 'Modulo 5: Técnicas Avanzadas de Predicción'
+author: "Leandro Gutierrez"
+date: "11/10/2024"
+output: pdf_document
+subtitle: 'Modelos Lineales Generalizados'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.path="www/")
+
+library(knitr)
+library(pander)
+library(kableExtra)
+library(dplyr)
+library(tidyr)
+library(car)
+library(ggcorrplot)
+library(earth)
+library(MASS)
+
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(cowplot))
+
+panderOptions('table.split.table', Inf)
+panderOptions('decimal.mark', ",")
+panderOptions('big.mark', ".")
+panderOptions('missing', "")
+
+options(knitr.kable.NA = '')
+```
+
+## Descripción de la tarea
+Descripción de la tarea
+Contamos con los credit de credit scoring de una entidad bancaria con los siguientes atributos:
+- Status of existing checking account. 
+- Duration in month. 
+- Credit history. 
+- Purpose. 
+- Credit amount. 
+- Savings account/bonds. 
+- Present employment since. 
+- Installment rate in percentage of disposable income. 
+- Personal status and sex. 
+- Other debtors / guarantors. 
+- Present residence since. 
+- Property. 
+- Age in years. 
+- Other installment plans. 
+- Housing. 
+- Number of existing credits at this bank. 
+- Job. 
+- Number of people being liable to provide maintenance for. 
+- Telephone. 
+- Foreign worker. 
+
+1. Propón un modelo lineal logit en el que la variable respuesta (crédito bueno=0, crédito malo=1), lo expliquen el resto de variables. 
+2. Interpreta la variable duration. ¿Es significativa? ¿A partir de qué nivel de significación deja de ser significativa? 
+3. Si eliminamos la variable amount del modelo, ¿crees que alguna otra variable incrementaría el sesgo provocado por la falta de amount en el modelo? Es decir, identifica el sesgo en otra variable producido por eliminar la variable amount. 
+4. Identifica efectos no lineales en la variable duration y amount. Interpreta los nuevos resultados después de meter, en el modelo, estas no linealidades. 
+5. ¿Cuál es la probabilidad estimada media de que el crédito sea malo para mayores de 50 años?
+6. ¿Crees que hay discriminación de género en este último modelo creado?
+7. Propón un modelo Ridge para modelizar el fenómeno crediticio. ¿Cuál es el lambda que minimiza el error? Compara este modelo con el logit que teníamos, anteriormente, con la curva ROC.
+
+# Solución
+### Carga de los datos
+```{r}
+# cargamos el dataset
+df <- read.table('https://archive.ics.uci.edu/ml/machine-learning-databases/statlog/german/german.data')
+
+colnames(df) <- c("chk_acct", "duration", "credit_his", "purpose", "amount",
+"saving_acct", "present_emp", "installment_rate", "sex", "other_debtor", "present_resid",
+"property", "age", "other_install", "housing", "n_credits", "job", "n_people", "telephone",
+"foreign", "response")
+
+df$response <- df$response - 1 
+
+df$response  <- as.factor(df$response)
+
+summary(df)
+
+dim(df)
+```
+
+Podemos observar que contamos con un set de credit de **1000 observaciones**, con **21 variables**. No se observan valores nulos.
+
+### Apartado 1
+En primer lugar utilizaremos un modelo con todas nuestras variables independientes:
+
+$$ \hat{response} = \beta_0+ \beta_1*chk\_acct + \beta_2*duration + \beta_3*credit\_his + \beta_4*purpose + ... +\epsilon$$
+
+```{r}
+# creamos modelo completo con todas las variables
+modelo.1 <- glm(response~., data=df, family=binomial(link="logit"))
+
+# visualizamos el summary del modelo
+summary(modelo.1)
+```
+
+Para este primer modelo podemos observar que obtuvimos un AIC (Criterio de Información de Akaike) de **993.82**.
+
+Vamos a intentar mejorarlo, para ello utilizaremos la función `stepAIC` del paquete `MASS` el cual realiza una simplificación de nuestro modelo descartando las variables que generan la menor perdida de información posible, en este caso utilizaremos el metodo hibrido (**both**) para la selección
+```{r}
+modelo.aic <- stepAIC(modelo.1, trace=FALSE, direction="both", scope=respuesta~.)
+
+modelo.aic$anova
+
+summary(modelo.aic)
+```
+
+Vemos que el AIC para este nuevo modelo es de **982.5**, una mejora de mas de 11 puntos. Por lo que continuaremos con este nuevo modelo como el propuesto.
+
+### Apartado 2
+Para nuestro modelo de regresión lineal generalizado la variable `duration` posee un efecto marginal de **2.568e-02**, con un error estandard de **8.940e-03**. Además podemos notar que posee un z-value de **2.872**, y un p-value igual a **0.004074**, lo que indica que es estadisticamente significativa, con un **nivel de significación de 0.40%**. Recordemos que el p-value nos indica las probabilidades de obtener el valor calculado del coeficiente a partir de una hipotesis nula ($H_0$) cierta, donde el coeficiente de la variable es cero, es decir donde la variable no es significativa para el modelo. En este caso al obtener una probabilidad de 0.004074, nos está marcando lo poco probable de que el coeficiente sea despreciable para el modelo. Además que para que la variable deje de ser significativa tendríamos que ir a buscar valores de significación del orden de los **0.30%**
+
+### Apartado 3
+A partir de la formula que nos entrega el modelo generado con `stepAIC` generamos la nueva, donde quitamos la variable amount
+
+```{r, warning=FALSE}
+# definimos la formula partir de la que entrega stepAIC excepto amount
+formula <- as.formula(response ~ chk_acct + duration + credit_his + purpose + 
+    saving_acct + installment_rate + sex + other_debtor + age + 
+    other_install + housing + telephone + foreign)
+
+# creamos modelo 
+modelo.2 <- glm(formula, data=df, family=binomial(link="logit"))
+
+# visualizamos el summary del modelo
+summary(modelo.2)
+```
+
+
+### Apartado 4
+```{r, warning=FALSE}
+# calculamos los bines para cada variable a analizar
+df$duration.cut <- cut(df$duration, breaks = 10, right = FALSE)
+df$amount.cut <- cut(df$amount/1000, breaks = 10, right = FALSE)
+
+count.by.duration <- df %>%
+  group_by(duration.cut) %>%
+  summarise(count = sum)
+
+# plot histograma de duration
+plot1 <- ggplot(df, aes(x = duration.cut)) +
+  geom_bar(aes(y = ..count..), fill = "skyblue", color = "black") +
+  geom_line(data = count.by.duration, aes(y = count), group = 1, color = "red", size = 1) +
+  geom_point(data = count.by.duration, aes(y = count), group = 1, color = "red") +
+  labs(title = "Histograma de Duration", x = "Duración [Meses]") +
+  theme_minimal()+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+plot1
+
+# plot histograma de amount
+plot2 <- ggplot(df, aes(x = amount.cut)) +
+  geom_bar(aes(y = ..count..), fill = "skyblue", color = "black") +
+  labs(title = "Histograma de Amount", x = "Monto del crédito [Miles]") +
+  theme_minimal()+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# plot histograma de años dede phd + salario medio de cada bin
+plot4 <- ggplot(df, aes(x = duration.cut)) +
+  geom_line(data = count.by.duration, aes(y = count), group = 1, color = "red", size = 1) +
+  geom_point(data = count.by.duration, aes(y = count), group = 1, color = "red") +
+  labs(title = "Geomline de Salario Medio", x = "Años desde PhD (Intervalos)") +
+  theme_minimal()+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+plot4
+
+plot_grid(plot1, plot2, plot4, ncol = 2)
+```

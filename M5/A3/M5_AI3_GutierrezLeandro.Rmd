@@ -1,0 +1,271 @@
+---
+title: 'Modulo 5: Técnicas Avanzadas de Predicción'
+author: "Leandro Gutierrez"
+date: "19/10/2024"
+output: pdf_document
+subtitle: 'Modelos Lineales Generalizados'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.path="www/")
+
+library(knitr)
+library(pander)
+library(kableExtra)
+library(dplyr)
+library(tidyr)
+library(car)
+library(ggcorrplot)
+library(earth)
+library(MASS)
+library(pROC)
+library(glmnet)
+library(spdep)
+library(leaflet)
+library(osmdata)
+library(sp)
+library(spdep)
+library(spatialreg)
+
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(cowplot))
+
+panderOptions('table.split.table', Inf)
+panderOptions('decimal.mark', ",")
+panderOptions('big.mark', ".")
+panderOptions('missing', "")
+
+options(knitr.kable.NA = '')
+```
+
+# Descripción de la tarea
+Utilizando la base de datos de pisos, que hemos utilizado durante el temario en la que podemos encontrar un listado de pisos disponibles en Airbnb en Madrid, por temas computacionales, debes quedarte con un máximo de 2000 viviendas para responder las siguientes preguntas:
+
+1. ¿Existe dependencia espacial en la variable precio? ¿Qué tipo de dependencia espacial existe: local, global o ambas? 
+1. Establece un modelo lineal para estimar la variable precio por m2. ¿Hay dependencia espacial en los residuos del modelo? 
+1. Introduce una variable más en el modelo. Dicha variable es la distancia mínima entre cada persona y la geolocalización de las oficinas bancarias de Madrid obtenidas con OSM. ¿Sigue habiendo dependencia espacial en los residuos del nuevo modelo? 
+1. Modeliza el precio con un SAR. ¿Es significativo el factor de dependencia espacial? Interpreta el modelo. 
+1. Modeliza el precio con un SEM. ¿Es significativo el factor de dependencia espacial? Interpreta el modelo. 
+1. Valora la capacidad predictiva del modelo SAR con la técnica de validación cruzada. 
+1. Propón un modelo GWR para estimar los residuos con un cierto suavizado.
+
+# Solución
+```{r, echo=FALSE}
+#Pinta a Nivel Punto una base de datos y Variable COlor y Tama?o
+pl_pt<-function(df, df2, size2, color2, dd=5, sz=50){
+    volterars=0
+    volterarc=0
+
+    if (!is.numeric(size2)) {  df$size<-as.numeric(as.factor(size2)) }
+    if (!is.numeric(color2)) { df$color<-as.numeric(as.factor(color2))}
+    if (is.numeric(size2)) {  df$size<-(size2) }
+    if (is.numeric(color2)) { df$color<-(color2)}
+    x<-dd 
+    dd<-seq(0,1,1/dd)
+
+    if (volterars==1){      df$size<-(max(df$size)+1-df$size)    }
+    if (volterarc==1){      df$color<-(max(df$color)+1-df$color)    } 
+
+
+    if (length(unique(df$color))<10){    pal <- colorBin(palette = "RdYlBu", domain = df$color ,bins = length(levels(as.factor(df$color))) , na.color = "grey40", reverse = T) }
+    if (length(unique(df$color))>=10){   pal <- colorBin(palette = "RdYlBu", domain = df$color ,bins = unique(quantile(df$color, dd )), na.color = "grey40", reverse = T) }
+
+    a<-as.character(cut(as.numeric(as.factor(df$size)),breaks=x))
+    a<-as.numeric(as.factor(a))
+
+    pintar<-leaflet() %>%
+    addTiles() %>%
+    addLegend(pal = pal, values = round(df$color, 1), position = "bottomright", title = "") %>%
+    addCircles(data=df, lng=df$longitude, lat=df$latitude, stroke = FALSE, opacity = 0.5,fillOpacity = 0.5,
+               color=pal(df$color),radius=a*sz) %>%
+    setView(lng = -3.6840, lat = 40.4154, zoom = 13)
+  
+  return(pintar)
+}
+```
+
+## Carga de los datos
+```{r}
+# cargamos el dataset
+df <- read.csv('/Users/lgutierrez/Proyectos/master/M5/A3/data/table_5.05 2.csv')
+
+df <- as_tibble(df)
+
+summary(df)
+
+glimpse(df)
+
+dim(df)
+```
+
+Podemos observar que contamos con un dataset de **7799 observaciones**, con **26 variables**. No se observan valores nulos.
+
+## Apartado 1
+Primero haremos un pequeño saneamiento de nuestro dataset para poder obtener la matriz de vecinos espaciales, eliminando coordenadas identicas y así poder determinar si existe correlación espacial en la variable `logprice`
+```{r, warning=FALSE}
+# checkeamos si existen coordenadas duplicadas en el dataframe
+duplicados <- df %>% 
+  group_by(longitude, latitude) %>% 
+  filter(n() > 1)
+
+# quitamos coordenadas duplicadas de dataframe
+df_nd <- df %>% distinct(longitude, latitude, .keep_all = TRUE)
+
+# creamos la matriz de vecinos espaciales
+nb <- knn2nb(knearneigh(cbind(df_nd$longitude, df_nd$latitude), k=5))
+```
+
+Ahora con la matriz de vecinos realizaremos el analisis de los test I-Moran y LISA
+```{r, fig.height=10, fig.width=8}
+# obtenemos el test I-Moran
+moran.test(x = df_nd$logprice, listw = nb2listw(nb, style="W"))
+
+# visualizamos resultados
+moran.plot(x = df_nd$logprice, listw = nb2listw(nb, style="W"),main="Gráfico I Moran")
+```
+
+Vemos que el estadístico **I-Moran** que obtenemos tiene un valor de **1.150742e-01** con un p-value de **2.2e-16**. Lo que nos indica que hay una leve correlación espacial positiva, altamente significativa.
+
+Relizamos el test LISA para determinar si existe autocorrelación espacial local
+```{r}
+# obtenemos el test LISA
+local_moran <- as.data.frame(localmoran(x = df_nd$logprice, listw = nb2listw(nb, style="W")))
+
+# visualizamos en el mapa
+pl_pt(df_nd, color2 = local_moran$Z.Ii, size2=0.1, dd = 6)                       
+```
+
+Del análisis visual podemos ver apreciar ciertas zonas de sobrecarga de puntos rojos lo que nos podría estar dando indicios de de la existencia de dependencia espacial local, sobre todo en zona noroeste lindero al Parque del Rertiro.
+
+## Apartado 2
+Vamos a crear un modelo lineal como base para el desarrollo del apartado, durante el desarrollo se realizaron pruebas de StepAIC para determinar las variables a incluir en el modelo y no se llegó a registrar grandes mejoras respecto al modelo simplificado, por practicidad se opta por un modelo lineal con formula simple donde intervienen la mayoría de las variables
+```{r}
+# convertimos las variables character a factores
+df_nd <- df_nd %>%
+  mutate_if(is.character, as.factor)
+
+# quitamos las variables tipo factor que tienen menos de dos nivel
+df_nd <- df_nd[, sapply(df_nd, function(x) !(is.factor(x) && nlevels(x) < 2))]
+
+# creamos modelo completo con todas las variables excepto las variables room_type, price y X
+modelo_1 <- lm(logprice~.-X -price, data=df_nd)
+
+# visualizamos resumen del modelo
+pander(summary(modelo_1))
+
+# econtramos SCR
+sum((modelo_1$resid)**2)
+```
+
+Obtenemos un modelo con un $R^2_a$ con un valor de **0,3509**, lo que nos dice que nuestras variables predictoras explican el 35% de la variabilidad total de nuestra incognita (price). Además obtenemos una $Suma de los Errores al Cuadrado$ de **1444**.
+
+Ahora con nuestro modelo listo vemos si existe dependencia espacial global
+```{r, fig.height=10, fig.width=8}
+moran.test(x = modelo_1$resid, listw = nb2listw(nb, style="W"))
+moran.plot(x = modelo_1$resid, listw = nb2listw(nb, style="W"),main="Gráfico I Moran")
+```
+
+Podemos observar que obtenemos un valor del estadístico **I-Moran** de **6.719334e-02** lo que indica una leve correlación espacial positiva para los residuos del modelo lineal planteado, además podemos notar que por el **p-value** que obtenemos (**2.2e-16**), el estadístico es altamente significativo, por lo que podemos descartar la hipotesis nula, que sostiene que no existe correlación espacial entre los residuos del modelo.
+
+Vemos si existe dependencia espacial local
+```{r, fig.height=10, fig.width=8}
+local_moran <- as.data.frame(localmoran(x = df_nd$logprice, listw = nb2listw(nb, style="W")))
+pl_pt(df_nd, color2 = local_moran$Z.Ii, size2=1, dd = 6)   
+```
+
+Del análisis visual podemos ver apreciar ciertas zonas de sobrecarga de puntos rojos lo que nos podría estar dando indicios de de la existencia de dependencia espacial local, sobre todo en zona noroeste lindero al Parque del Rertiro.
+
+## Apartado 3
+Para el desarrollo de este apartado obtendremos del paquete `osm` la ubicación de los bancos de la ciudad de Madrid, con ellos estableceremos cual es el mas cercano a cada domicilio e incorporaremos dicha métrica a nuestro dataset para luego analizar si persisten las correlaciones espaciales en nuestro modelo
+```{r message=FALSE}
+# obtenemos los bancos de Madrid
+mapa <- opq(bbox = "Madrid")
+poligonos <- add_osm_feature(mapa, key = "amenity", value = "bank")
+sf <- osmdata_sp(poligonos)
+
+# convertimos los dataframes de casas y bancos a objetos sf
+pisos <- st_as_sf(df_nd, coords = c("longitude", "latitude"), crs = 4326)  # 4326 es CRS de WGS 84
+bancos <- st_as_sf(sf$osm_points, coords = c("longitude", "latitude"), crs = 4326)
+
+# pander(dim(bancos)) // _1634_ and _85_>
+
+# calculamos las distancias en el producto cruzado
+distancias <- st_distance(pisos, bancos)
+
+# encontramos el banco mas cercano a cada casa
+indice_banco_mas_cercano <- apply(distancias, 1, which.min)
+
+# añadimos al dataframe las columnas banco mas cercano y la distancia al mismo
+pisos <- pisos %>%
+  mutate(distancia_minima = apply(distancias, 1, min))  # Añade distancia mínima
+
+df_new <- st_drop_geometry(pisos)
+
+df_new$longitude <- st_coordinates(pisos)[, 1]  # Extraer longitud
+df_new$latitude <- st_coordinates(pisos)[, 2]   # Extraer latitud
+
+dim(df_new)
+
+modelo_2 <- lm(logprice~.-X -price, data=df_new)
+
+# visualizamos resumen del modelo
+pander(summary(modelo_2))
+```
+
+Nuestro nuevo modelo nos entrega un $R^2_a$ de **0,3551** y un Error Std de los Residuos de **0,4357**.
+
+Ahora veamos si existe dependencia espacial global
+```{r, warning=FALSE}
+# creamos la matriz de vecinos espaciales
+nb_new <- knn2nb(knearneigh(cbind(df_new$longitude, df_new$latitude), k=5))
+
+# obtenemos el test I-Moran
+moran.test(x = modelo_2$resid, listw = nb2listw(nb_new, style="W"))
+moran.plot(x = modelo_2$resid, listw = nb2listw(nb_new, style="W"),main="Gráfico I Moran")
+```
+
+En este nuevo modelo habiendo incorporado las distancias mínimas a entidades bancarias aún presenta un **p-value** que nos indica que el estdístico I-Moran es significativo con un valor de **6.513400e-02** indicando dependencia espacial global.
+
+## Apartado 4
+Como punto de partida dividiremos nuestro set de datos en dos grupos, entrenamiento (train) y testeo (test), en parte para luego poder hacer tests de validación cruzada y además para reducir lo costos computacionales en el calculo del modelo SAR
+```{r, Warning=FALSE}
+# dividimos nuestro set de datos para ahorrar tiempo de procesamiento
+index <- sample(1:nrow(df_nd), 1000, replace = FALSE)
+df_train <- df_nd[index,]
+df_test <- df_nd[ -index, ]
+
+# creamos la matriz de vecinos espaciales
+nb_train <- knn2nb(knearneigh(cbind(df_train$longitude, df_train$latitude), k=5))
+
+# definimos la formula simplificada de nuestros modelos
+formula <- as.formula("logprice ~ .-X -price")
+
+# definimos el modelo lineal
+modelo_lm <- lm(formula, df_train)
+
+# definimos el modelo espacial
+modelo_espacial_sar <- lagsarlm(formula = formula, data = df_train, listw = nb2listw(nb_train, style="W")) 
+
+# visualizamos los summary de los modelos
+summary(modelo_lm)
+summary(modelo_espacial_sar)
+
+# obtenemos la suma de los residuos al cuadrado
+sum((modelo_lm$resid)**2)
+sum((modelo_espacial_sar$residuals)**2)
+
+# obtenemos los AIC de nuestros modelos
+AIC(modelo_lm)
+AIC(modelo_espacial_sar)
+```
+
+Podemos notar que no obtenemos una gran mejora en el modelo SAR respecto al modelo Lineal original. El **AIC** obtenenido por el modelo SAR es levemente mejor que el del modelo Lineal, con un valor de **1200** vs los **1204** del modelo glm, lo que nos indica una mejor calidad para el modelo espacial. En tanto en la suma de los residuos al cuadrado tambien se percibe una mejora en el modelo espacial, con un valor de **184,5** vs los **186,1** del modelo lineal.
+
+## Apartado 5
+```{r}
+modelo_espacial_sem <- errorsarlm(formula = formula, data = df_train, listw = nb2listw(nb_train, style="W")) 
+summary(modelo_espacial_sem)
+sum((modelo_espacial_sem$residuals)**2)
+```
+
+Podemos observar que con el nuevo modelo SEM propuesto mejoramos levemente la calidad de nuestra predicción, obteniendo un **AIC** de **1195.1** y una suma de residuos al cuadrado de **184,0**.

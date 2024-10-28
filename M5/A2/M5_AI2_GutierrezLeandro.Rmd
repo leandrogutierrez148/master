@@ -1,0 +1,409 @@
+---
+title: 'Modulo 5: Técnicas Avanzadas de Predicción'
+author: "Leandro Gutierrez"
+date: "11/10/2024"
+output: pdf_document
+subtitle: 'Modelos Lineales Generalizados'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.path="www/")
+
+library(knitr)
+library(pander)
+library(kableExtra)
+library(dplyr)
+library(tidyr)
+library(car)
+library(ggcorrplot)
+library(earth)
+library(MASS)
+library(pROC)
+library(glmnet)
+
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(cowplot))
+
+panderOptions('table.split.table', Inf)
+panderOptions('decimal.mark', ",")
+panderOptions('big.mark', ".")
+panderOptions('missing', "")
+
+options(knitr.kable.NA = '')
+```
+
+# Descripción de la tarea
+Descripción de la tarea
+
+1. Propón un modelo lineal logit en el que la variable respuesta (crédito bueno=0, crédito malo=1), lo expliquen el resto de variables. 
+2. Interpreta la variable duration. ¿Es significativa? ¿A partir de qué nivel de significación deja de ser significativa? 
+3. Si eliminamos la variable amount del modelo, ¿crees que alguna otra variable incrementaría el sesgo provocado por la falta de amount en el modelo? Es decir, identifica el sesgo en otra variable producido por eliminar la variable amount. 
+4. Identifica efectos no lineales en la variable duration y amount. Interpreta los nuevos resultados después de meter, en el modelo, estas no linealidades. 
+5. ¿Cuál es la probabilidad estimada media de que el crédito sea malo para mayores de 50 años?
+6. ¿Crees que hay discriminación de género en este último modelo creado?
+7. Propón un modelo Ridge para modelizar el fenómeno crediticio. ¿Cuál es el lambda que minimiza el error? Compara este modelo con el logit que teníamos, anteriormente, con la curva ROC.
+
+# Solución
+## Carga de los datos
+```{r}
+# cargamos el dataset
+df <- read.table('https://archive.ics.uci.edu/ml/machine-learning-databases/statlog/german/german.data')
+
+colnames(df) <- c("chk_acct", "duration", "credit_his", "purpose", "amount",
+"saving_acct", "present_emp", "installment_rate", "sex", "other_debtor", "present_resid",
+"property", "age", "other_install", "housing", "n_credits", "job", "n_people", "telephone",
+"foreign", "response")
+
+
+df$response <- df$response - 1 
+
+df$response.old <- df$response 
+
+df$response  <- as.factor(df$response)
+
+summary(df)
+```
+
+Podemos observar que contamos con un set de credit de **1000 observaciones**, con **21 variables**. No se observan valores nulos.
+
+## Apartado 1
+En primer lugar utilizaremos un modelo con todas nuestras variables independientes:
+
+$$ \hat{response} = \beta_0+ \beta_1*chk\_acct + \beta_2*duration + \beta_3*credit\_his + \beta_4*purpose + ... +\epsilon$$
+
+```{r}
+# creamos modelo completo con todas las variables excepto la variable auxiliar response.old
+modelo.1 <- glm(response~. - response.old, data=df, family=binomial(link="logit"))
+
+# visualizamos el summary del modelo
+pander(summary(modelo.1))
+
+AIC(modelo.1)
+```
+
+Para este primer modelo podemos observar que obtuvimos un AIC (Criterio de Información de Akaike) de **993.82**.
+
+Vamos a intentar mejorarlo, para ello utilizaremos la función `stepAIC` del paquete `MASS` el cual realiza una reducción de nuestro modelo, descartando variables menos significativas generando la menor perdida de información posible, en este caso utilizaremos el metodo hibrido (**both**) para la selección de las variables
+
+```{r}
+# utilizamos stepAIC para encontrar un modelo simplificado
+modelo.aic <- stepAIC(modelo.1, trace=FALSE, direction="both", scope=respuesta~.)
+
+# visualizamos la formula del modelo propuesto
+pander(formula(modelo.aic))
+
+# vemos summary del modelo propuesto
+pander(summary(modelo.aic))
+
+AIC(modelo.aic)
+```
+
+Vemos que el AIC para este nuevo modelo es de **982.5**, una mejora de mas de 11 puntos. Por lo que continuaremos con este nuevo modelo como el propuesto. También podemos notar que aumentó la suma de los residuos al cuadrado, pasando de un valor original de **895.82** a **910.5** con el nuevo modelo propuesto.
+
+Utilizaremos el modelo que nos entrega el algortimo Stepwise (modelo.aic) como base para el resto del trabajo.
+
+Para analizar la calidad de nuestro modelo primero veamos la matriz de confusión para nuestro modelo utilizando un punto de corte (threshold) del 0.5 como primera aproximación
+
+```{r}
+# generamos las predicciones sobre el mismo dataset que tenemos
+predicciones <- predict(modelo.aic, newdata = df, type = "response")
+
+# utilizamos un threshold de 0.5
+predicciones <- ifelse(predicciones > 0.5, 1, 0)
+
+# creamos la tabla de confusión
+tabla_confusion <- table(Predicción = predicciones, Real = df$response)
+
+# visualizamos resultados
+pander(tabla_confusion)
+
+# obtenemos tp tn fp y fn
+tp <- tabla_confusion[2, 2]
+tn <- tabla_confusion[1, 1]
+fp <- tabla_confusion[2, 1]
+fn <- tabla_confusion[1, 2]
+
+# calculamos sensibilidad
+sensibilidad <- tp / (tp + fn)
+
+sensibilidad
+
+# calculamos especificidad
+especificidad <- tn / (tn + fp)
+
+especificidad
+```
+
+Podemos observar que contamos con una sensibilidad demasiado baja, del ordel de los **0.52** y siendo que nos interesa **minimizar la cantidad de crédito calificado como bueno cuando en realidad es malo**, intentaremos minimizar los **falsos negativos** modificando iterativamente nuestro punto de corte. Como resultado de este proceso nuestra **sensibilidad** debe incrementar, en detrimento de la **especificidad**.
+
+```{r}
+# generamos las predicciones sobre el mismo dataset que tenemos
+predicciones <- predict(modelo.aic, newdata = df, type = "response")
+
+# utilizamos un threshold de 0.3
+predicciones <- ifelse(predicciones > 0.3, 1, 0)
+
+# creamos la tabla de confusión
+tabla_confusion <- table(Predicción = predicciones, Real = df$response)
+
+# obtenemos tp tn fp y fn
+tp <- tabla_confusion[2, 2]
+tn <- tabla_confusion[1, 1]
+fp <- tabla_confusion[2, 1]
+fn <- tabla_confusion[1, 2]
+
+# visualizamos resultados
+pander(tabla_confusion)
+
+# calculamos sensibilidad
+sensibilidad <- tp / (tp + fn)
+
+sensibilidad
+
+# calculamos especificidad
+especificidad <- tn / (tn + fp)
+
+especificidad
+```
+
+```{r}
+# veamos el AUC del modelo
+auc(df$response, predicciones)
+```
+
+Podemos considerar que con un AUC de **0.74** estamos ante un modelo aceptable.
+
+## Apartado 2
+Para nuestro modelo de regresión lineal generalizado la variable `duration` posee un efecto marginal de **2.568e-02**, con un error estandard de **8.940e-03**. Además podemos notar que posee un z-value de **2.872**, y un p-value igual a **0.004074**, lo que indica que es estadisticamente significativa, con un **nivel de significación de 0.4%**. Recordemos que el p-value nos indica las probabilidades de obtener el valor calculado del coeficiente a partir de una hipotesis nula ($H_0$) cierta, donde el coeficiente de la variable es cero, es decir donde la variable no es significativa para el modelo. En este caso al obtener una probabilidad de 0.004074, nos está marcando lo poco probable de que el coeficiente sea despreciable para el modelo. Además que para que la variable deje de ser significativa tendríamos que ir a buscar valores de significación del orden de los **0.30%**
+
+## Apartado 3
+A partir de la formula que nos entrega el modelo generado con `stepAIC` generamos la nueva, donde quitamos la variable `amount`
+
+```{r, warning=FALSE}
+# definimos la formula partir de la que entrega stepAIC excepto amount
+formula.2 <- as.formula(response ~ chk_acct + duration + credit_his + purpose + 
+    saving_acct + installment_rate + sex + other_debtor + age + 
+    other_install + housing + telephone + foreign)
+
+# creamos modelo 
+modelo.2 <- glm(formula.2, data=df, family=binomial(link="logit"))
+
+# visualizamos el summary del modelo
+pander(summary(modelo.2))
+
+AIC(modelo.2)
+```
+
+Se puede apreciar una pérdida en la calidad del modelo al eliminar la variable `amount`, esto lo notamos en el **AIC** del modelo, el cual pasó de un valor de **982.5** para el **modelo.aic** (resultado de la función stepAIC) con la variable `amount` incorporada, a un valor de **990.07** en este modelo donde se la excluye. Tambien se percibe un aumento en la suma de los residuos, que pasaron de un valor de **910.5** a **920.07** con la exclusión de la variable. Se puede observar que todos los betas se ven modificados por la eliminación de la variable `amount`.
+
+## Apartado 4
+En primer lugar vamos a visualizar los histogramas de las variables que queremos analizar, en este caso `duration` y `amount`. Acompañando los histogramas anexamos las lines de tendencia correspondientes a los porcentajes de **creditos originalmente calificado como malo de cada intervalo**
+
+```{r, warning=FALSE}
+# calculamos los bines para cada variable a analizar
+df$duration.bin <- cut(df$duration, breaks = 10, right = FALSE)
+df$amount.bin <- cut(df$amount/1000, breaks = 10, right = FALSE)
+
+percentage.by.duration <- df %>%
+  group_by(duration.bin) %>%
+  summarise(percentage = sum(response.old)/n())
+
+percentage.by.amount <- df %>%
+  group_by(amount.bin) %>%
+  summarise(percentage = sum(response.old)/n())
+
+# plot histograma de duration
+plot1 <- ggplot(df, aes(x = duration.bin)) +
+  geom_bar(aes(y = ..count..), fill = "skyblue", color = "black") +
+  labs(title = "Histograma de Duration", x = "Duración [Meses]") +
+  theme_minimal()+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# plot histograma de amount
+plot2 <- ggplot(df, aes(x = amount.bin)) +
+  geom_bar(aes(y = ..count..), fill = "skyblue", color = "black") +
+  labs(title = "Histograma de Amount", x = "Monto del crédito [Miles]") +
+  theme_minimal()+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# geomline del crédito calificado como malo en función de la duracion
+plot3 <- ggplot(df, aes(x = duration.bin)) +
+  geom_line(data = percentage.by.duration, aes(y = percentage), group = 1, color = "red", size = 1) +
+  geom_point(data = percentage.by.duration, aes(y = percentage), group = 1, color = "red") +
+  labs(title = "Tasa de credito malo", x = "Duración [Meses]") +
+  theme_minimal()+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# geomline del crédito calificado como malo en función del monto
+plot4 <- ggplot(df, aes(x = amount.bin)) +
+  geom_line(data = percentage.by.amount, aes(y = percentage), group = 1, color = "red", size = 1) +
+  geom_point(data = percentage.by.amount, aes(y = percentage), group = 1, color = "red") +
+  labs(title = "Tasa de credito malo", x = "Monto del crédito [Miles]") +
+  theme_minimal()+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+plot_grid(plot1, plot2, plot3, plot4, ncol = 2)
+```
+
+Podemos observar que ambas variables parecen guardar una relación no estrictamente lineal con la clasificación del crédito. Existen tendencias crecientes en la tasa de credito calificado como malo a medida que aumentan ambas variables, a partir de cierto punto la tasa parece incrementarse drasticamente, probablemente sugiriendo una relación cuadrática entre las variables.
+
+Incorporaremos terminos cuadraticos para las variables `duration` y `amount` en nuestra formula y analizaremos los resultados del modelo
+
+```{r, warning=FALSE}
+# definimos la formula partir de la que entrega stepAIC
+formula.3 <- as.formula(response ~ chk_acct + duration +  I(duration^2) +
+    amount + I(amount^2) +credit_his + purpose + 
+    saving_acct + installment_rate + sex + other_debtor + age + 
+    other_install + housing + telephone + foreign)
+
+# creamos modelo 
+modelo.3 <- glm(formula.3, data=df, family=binomial(link="logit"))
+
+# visualizamos el summary del modelo
+pander(summary(modelo.3))
+
+AIC(modelo.3)
+```
+
+Al agregarle los terminos no lineales `amount^2` y `duration^2` no se aprecia una diferencia significativa en la calidad del modelo respecto al modelo base propuesto por el algortimo Stepwise. Para el modelo original propuesto (modelo.aic) obtuvimos un AIC **982.5**, mientras que para el modelo con los términos cuadráticos obtuvimos un AIC de **982.29** una mejora mejor a un punto, lo que podríamos considerar no significativa. Además en terminos de la **suma de los cuadrados de los residuos** pasamos de un valor de **910.5** en el modelo base, a un valor de **906.29** para el modelo con terminos cuadráticos.
+
+## Apartado 5
+Para desarrollar este enunciado primero obtendremos las predicciones de nuestro modelo para el dataset de estudio y lo compararemos visualmente con las respuestas reales
+
+```{r}
+# calculamos las predicciones de nuestro modelo
+predicciones <- predict(modelo.aic, newdata = df, type = "response")
+
+# utilizamos el punto de corte determinado en el ejercicio anterior
+predicciones <- ifelse(predicciones > 0.3, 1, 0)
+
+# anexamos la columna de predicciones al dataframe original
+df <- cbind(df, predicciones)
+```
+
+Ahora visualicemos las predicciones vs las respuestas reales en función de la edad de los postulantes al crédito
+
+```{r, fig.height=10, fig.width=8}
+# creamos bines para el estudio visual
+df$age.bin <- cut(df$age, breaks = 10, right = FALSE)
+
+# calculamos la tasa de aceptación del crédito predicho
+percentage.by.age <- df %>%
+  group_by(age.bin) %>%
+  summarise(percentage = sum(predicciones)/n())
+
+# calculamos la tasa de aceptación real de crédito
+real.percentage.by.age <- df %>%
+  group_by(age.bin) %>%
+  summarise(percentage = sum(response.old)/n())
+
+# plot histograma de duration
+plot5 <- ggplot(df, aes(x = age.bin)) +
+  geom_bar(aes(y = ..count..), fill = "skyblue", color = "black") +
+  labs(title = "Histograma de Age", x = "Edad [Años]") +
+  theme_minimal()+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# plot linea de tendencia para predicción
+plot6 <- ggplot(df, aes(x = age.bin)) +
+  geom_line(data = percentage.by.age, aes(y = percentage), group = 1, color = "red", size = 1) +
+  geom_point(data = percentage.by.age, aes(y = percentage), group = 1, color = "red") +
+  labs(title = "Tasa predicha de credito malo", x = "Edad [años]") +
+  theme_minimal()+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  
+# plot linea de tendencia para credito real
+plot7 <- ggplot(df, aes(x = age.bin)) +
+  geom_line(data = real.percentage.by.age, aes(y = percentage), group = 1, color = "red", size = 1) +
+  geom_point(data = real.percentage.by.age, aes(y = percentage), group = 1, color = "red") +
+  labs(title = "Tasa real de credito malo", x = "Edad [años]") +
+  theme_minimal()+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+plot_grid(plot5, plot7, plot6, ncol = 1)
+```
+
+```{r}
+# obtenemos subset de mayores de 50
+df.over50 <- df %>% filter(age > 50)
+
+# calculamos la media de las predicciones para el subset
+prob.over.50 <- mean(df.over50$predicciones)
+
+# vemos resultado
+prob.over.50
+```
+
+La probabilidad media de clasificación de un crédito como malo dado que el cliente tenga más de 50 años es de **0.3274**.
+
+## Apartado 6
+Primero visualicemos las lineas de tendencia de las predicciones en función del sexo y el estado civil
+
+```{r}
+# calculamos la tasa de aceptación del crédito predicho
+percentage.by.sex <- df %>%
+  group_by(sex) %>%
+  summarise(percentage = sum(predicciones)/n())
+
+# plot histograma de duration
+plot8 <- ggplot(df, aes(x = sex)) +
+  geom_bar(aes(y = ..count..), fill = "skyblue", color = "black") +
+  labs(title = "Histograma de Sex", x = "Sex") +
+  theme_minimal()+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# plot linea de tendencia para predicción
+plot9 <- ggplot(df, aes(x = sex)) +
+  geom_line(data = percentage.by.sex, aes(y = percentage), group = 1, color = "red", size = 1) +
+  geom_point(data = percentage.by.sex, aes(y = percentage), group = 1, color = "red") +
+  labs(title = "Tasa predicha de credito malo", x = "Sex") +
+  theme_minimal()+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  
+plot_grid(plot8, plot9, ncol = 1)
+```
+
+Sabiendo que la variable sex tiene el siguiente significado
+
+Personal status and sex:
+
+- A91: male   - divorced/separated
+- A92: female - divorced/separated/married
+- A93: male   - single
+- A94: male   - married/widowed
+- A95: female - single
+
+Vemos que paras las categorias A93 y A94 que representan **hombres solteros** y **hombres casados/viudos**, respectivameente, la tasa de credito malo predicho es menor respecto a la categoria A92 que representa **mujeres casadas/divorsiadas/viudas**, lo que podría indicar un sesgo vinculado al sexo
+
+Agrupemos segun la definición que tenemos arriba solo en dos categorias **Male** y **Female**, para analizar si efectiavamente nuestro modelo está sesgado
+
+```{r}
+# definimos nuestra variable dicotomica sex.binary
+df <- df %>% mutate(sex.binary = if_else(sex %in% c("A91", "A93", "A94"), "Male", "Female"))
+
+# calculamos la tasa de aceptación del crédito predicho
+percentage.by.sex <- df %>%
+  group_by(sex.binary) %>%
+  summarise(percentage = sum(predicciones)/n())
+
+pander(percentage.by.sex)
+
+# plot histograma de duration
+plot8 <- ggplot(df, aes(x = sex.binary)) +
+  geom_bar(aes(y = ..count..), fill = "skyblue", color = "black") +
+  labs(title = "Histograma de Genero", x = "Sex") +
+  theme_minimal()+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# plot linea de tendencia para predicción
+plot9 <- ggplot(df, aes(x = sex.binary)) +
+  geom_line(data = percentage.by.sex, aes(y = percentage), group = 1, color = "red", size = 1) +
+  geom_point(data = percentage.by.sex, aes(y = percentage), group = 1, color = "red") +
+  labs(title = "Tasa predicha de credito malo", x = "Sex") +
+  theme_minimal()+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  
+plot_grid(plot8, plot9, ncol = 1)
+```
+
+Con estos resultados se nota la leve tendencia a calificar como bueno al sexo Masculino (Male) por sobre el Femenino (Female), con una diferencia porcuentual de al rededor del 13%, resultados que podríam indicar un modelo sesgado respecto al género del tomador del crédito.

@@ -1,0 +1,260 @@
+---
+title: 'Modulo 5: Técnicas Avanzadas de Predicción'
+author: "Leandro Gutierrez"
+date: "19/10/2024"
+output: pdf_document
+subtitle: 'Modelos Lineales Generalizados'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.path="www/")
+
+library(knitr)
+library(pander)
+library(kableExtra)
+library(dplyr)
+library(tidyr)
+library(car)
+library(ggcorrplot)
+library(earth)
+library(MASS)
+library(pROC)
+library(glmnet)
+library(spdep)
+library(leaflet)
+library(osmdata)
+library(sp)
+library(spdep)
+library(spatialreg)
+library(MPV)
+
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(cowplot))
+
+panderOptions('table.split.table', Inf)
+panderOptions('decimal.mark', ",")
+panderOptions('big.mark', ".")
+panderOptions('missing', "")
+
+options(knitr.kable.NA = '')
+```
+
+# Descripción de la tarea
+Dentro del paquete de R “MPV”, se encuentra una base de datos de gasto en combustible de diferentes coches con una serie de características:
+
+- y - Miles/gallon. 
+- x1 - Displacement (cubic in). 
+- x2 - Horsepower (ft-lb). 
+- x3 - Torque (ft-lb). 
+- x4 - Compression ratio. 
+- x5 - Rear axle ratio. 
+- x6 - Carburetor (barrels). 
+- x7 - No. of transmission speeds. 
+- x8 - Overall length (in). 
+- x9 - Width (in). 
+- x10 - Weight (lb). 
+- x11 - Type of transmission (1=automatic, 0=manual).
+
+1. Proponed una especificación que a vuestra intuición sea un buen modelo para explicar la variable y en base a las x que tenemos anteriormente. 
+2. Utilizar la técnica STEPWISE para elegir el modelo de tal forma que minimicemos el BIC. 
+3. Programad vuestro propio STEPWISE (Backward o Forward) para decidir cuál sería el mejor modelo minimizando la siguiente función:    
+
+4. Probad a variar el 0.05 para elegir un modelo según vuestra visión. 
+5. En función de los modelos anteriores, ¿cuál de ellos en el caso de que difieran recomendaríais?
+
+# Solución
+
+## Carga de los datos
+```{r}
+# cargamos el dataset
+df_org <- as_tibble(table.b3[-c(23,25),])
+
+# creamos una copia del dataframe original
+df <- df_org
+
+# renombramos las columnas
+colnames(df) <- c("response","displacement","horsepower","torque","compression","rearXratio","carburetor","transmissions","length","width","weight","type")
+
+# visualizamos los datos
+summary(df)
+glimpse(df)
+```
+
+Podemos observar que nuestro dataset sanitizado cuenta con 30 columnas y 12 observaciones. Todas las variables son de tipo cuantitativas continuas y sus tipos de datos intrínsecos son `numeric`. No se observan valores nulos.
+
+## Apartado 1
+Comenzaremo analizando un modelo lineal con todas las variables predictoras incorporadas, ello nos servirá para notar los efectos marginales de cada variable independiente y sus niveles de significancia
+```{r}
+# creamos nuestro modelo lineal
+modelo_1 <- lm(response ~ ., df)
+
+# visualizamos el summary del modelo
+pander(summary(modelo_1))
+
+# obtenemos el rss del modelo
+rss <- sum(residuals(modelo_1)^2)
+
+print(rss)
+
+# graficamos matriz de correlaciones
+# cr <- cor(dplyr::select(df, - response), use="complete.obs")
+# ggcorrplot(cr, hc.order = TRUE, type = "lower", lab = TRUE)
+```
+
+Podemos ver que nuestro modelo parece no estar capturando de manera correcta la naturaleza de nuestra variable dependiente `response`. Lo primero que observamos es bajos niveles de significancia en nuestros predictores, salvo por la variable `rearXratio` que presenta un nivel de significacia de **0.0799**, aún éste lejos del 0.05 que solemos buscar. Además se destaca el efecto marginal del incercepto demasiado alto en comparación con los demás coeficientes, un error estandard alto en comparación con su estimación y con un p-value de **0.5749**, indicandonos que su incorporación en el modelo no aporta valor alguno al momento de explicar la variable dependiente.
+
+De mismo modo notamos que obtenemos $RSS$ de **187.4007** y un $R^2_{ajustado}$ de **0.7349**, lo que nos dice nuestro modelo es capaz de explicar el 73.49% de la variabilidad total de `response`.
+
+A continuación intentaremos mejorar nuestro modelo incorporando efectos no lineales de las variables independientes, para ello utilizaremos la función `earth` con un threshold de **0.01**
+
+```{r}
+# creamos el modelo
+modelo_earth <- earth(response ~ ., df, thresh=0.01)
+
+# visualizamos el summary
+summary(modelo_earth)
+
+# calculamos R^2 ajustado
+rs <- 0.9096004
+p <- length(modelo_earth$coefficients) - 1  # quitamos intercept
+n <- nrow(df)
+rsa <- 1 - (1 - rs) * ((n - 1) / (n - p - 1))
+print(rsa)
+
+# numero de params
+k <- length(coef(modelo_earth))
+
+# numero de observaciones
+n <- nrow(df)
+
+# calculamos el BIC
+bic <- n * log(rss / n) + k * log(n)
+
+print(bic)
+```
+
+La función `earth` nos entrega un modelo basado splines, donde seleccionó 5 terminos (los observados en el summary) a partir de los 11 predictores originales. Obtuvimos un $RSS$ (**Suma de los Cuadrados de los Residuos**) de **102.9747** disminuyendo respecto al modelo original con todas las variables predictoras incorporadas. Además, nos entrega un $R^2_{ajustado}$ **0.8951** también mejorando el valor obtenido por el modelo original. Y obtuvimos un $BIC$ de **71.9675**
+
+## Apartado 2
+Para este apartado utilizaremos la función `stepAIC` del paquete `MASS` el cual realiza una simplificación de nuestro modelo descartando las variables que generan la menor perdida de información posible, en este caso utilizaremos el metodo hibrido (**both**) para la selección
+```{r}
+# utilizamos stepAIC para encontrar un modelo simplificado
+modelo_aic <- stepAIC(modelo_1, trace=TRUE, direction="forward", scope=respuesta~., k = log(n))
+
+# visualizamos la formula del modelo propuesto
+pander(formula(modelo_aic))
+
+# vemos summary del modelo propuesto
+pander(summary(modelo_aic))
+
+AIC(modelo_aic)
+BIC(modelo_aic)
+```
+
+## Apartado 3
+En primer lugar haremos unos pequeños cambios al algoritmo que fué brindado para poder entender como funciona y poder interpretar como afecta en la elección del modelo óptimo el parámetro `k` el cual representa una **penalización por la inclusión de nuevas variables predictoras**.
+
+Agregamos unos prints para poder observar como se van formando los modelos candidatos y como se realiza la selección final en función del criterio elegido
+```{r}
+stepwise <- function(df, k){
+    #Inicializo las variables
+    n <- nrow(df)
+    m <- ncol(df) - 1
+    m_name <- colnames(dplyr::select(df,-response))
+    old_m <- rep(NA,length(m_name))
+    modelos <- data.frame()
+    formula_min <- ""
+    # Bucle para recorrer las posibles variables
+    for (i in 1:m) {
+        U <- c(0)
+        ncol <- length(m_name)
+
+        for (m_var in 1:ncol){
+            remaining_var <- paste0(m_name[m_var], collapse="+")
+            formula_str <- remaining_var
+            
+            if (formula_min != "") {
+                formula_str <- paste(formula_min, remaining_var, sep = "+")
+            }
+
+            # Creo un modelo
+            formula_i <- as.formula(paste0("response~", formula_str))
+            mod_i <- glm(formula=formula_i, data=df, family = gaussian)
+            m_num <- length(mod_i$coefficients) - 1
+            pred <- predict(mod_i, df, type="response")
+
+            # Formula a minimizar
+            U[m_var] <- (sum((df$response - pred)**2))**0.5 / ((sum(df$response**2))**0.5 + (sum(pred**2))**0.5 ) + k * m_num
+        }
+
+        # Almaceno el resultado
+        Umin <- which.min(U)
+        old_m[i] <- m_name[Umin]
+        m_name <- m_name[-Umin]
+        formula_min <- paste0(old_m[(!is.na(old_m))], collapse="+")
+
+        modelos[i,1] <- formula_min
+        modelos[i,2] <- U[Umin]
+
+        cat(paste0("Mejor modelo con p = ", i, ":\n ", formula_min,"\n"))
+        U[Umin]
+    }
+
+    return(modelos)
+}
+```
+
+```{r}
+k=0.005
+
+modelos <- stepwise(df, k)
+pander(modelos, split.table=TRUE)
+cat(paste0("El mejor modelo con k = ", k, ":\n", modelos[which.min(modelos$V2), c("V1", "V2")]))
+```
+
+Con una penalización por la inclusión de nuevas variables (`k`) igual a **0.005** obtenemos un modelo muy selectivo, con solo una variable predictora en su fórmula, `displacement`, y un valor para la función a minimizar de **0.07727**.
+
+## Apartado 4
+A continuación modificaremos los valores de `k` para ver como afecta éste parámetro a la selección del modelo óptimo
+
+```{r}
+k=0.002
+
+modelos <- stepwise(df, k)
+pander(modelos, split.table=TRUE)
+cat(paste0("El mejor modelo con k = ", k, ":\n", modelos[which.min(modelos$V2), c("V1", "V2")]))
+
+```
+
+Notamos que al tomar el valor `k = 0.002` el mejor modelo lo obtenemos con dos variables predictoras `displacement+compression` y un valor de **0.07374** para el criterio **U** (resultado de la función a minimizar).
+
+Si por último elegimos una penalización muy pequeña por la inclusión de variables predictoras obtendremos los siguientes resultados
+
+```{r}
+k=0.001
+
+modelos <- stepwise(df, k)
+pander(modelos, split.table=TRUE)
+cat(paste0("El mejor modelo con k = ", k, ":\n", modelos[which.min(modelos$V2), c("V1", "V2")]))
+```
+
+Para el valor de `k = 0.001` el mejor modelo contiene en su formula 9 de las 11 variables predictoras disponibles y la función a minimizar toma un valor de **0.06898**. 
+
+A esta altura es necesario destacar que cuanto menos se penaliza la inclusión de variables explicativas nuestro algoritmo de selección tiende a agregar todas los predictores disponibles en busqueda del modelo que minimice la diferencia entre la respuesta real y la predicha por nuestra regresión lineal multiple. Al mismo tiempo se nota una mejora en el criterio seleccionado (función $U$) a medida que mas variables forman parte del modelo.
+
+
+## Apartado 5
+
+```{r}
+
+model_step <- lm(response~displacement+compression, df)
+model_step_all <- lm(response~displacement+compression+width+length+weight+rearXratio+transmissions+torque+horsepower, df)
+
+summary(model_step)
+AIC(model_step)
+BIC(model_step)
+
+summary(model_step_all)
+AIC(model_step_all)
+BIC(model_step_all)
+```

@@ -407,18 +407,18 @@ df_wide <- df_wide %>% mutate(
 )
 
 # creamos la imagen
-kable(df_wide %>% select(pais_r, anyo, facebook_num, poblacion_num, internet_por_num, poblacion_internet) %>% filter(pais_r == 'Spain'), "html", booktabs=TRUE) %>%
-    kable_styling(bootstrap_options=c("striped", "hover", "condensed", "responsive")
-    ,font_size = 15,full_width = T) %>%
-    save_kable("/Users/lgutierrez/Proyectos/master/M3/A3/temp/spain_new.png")
+# kable(df_wide %>% select(pais_r, anyo, facebook_num, poblacion_num, internet_por_num, poblacion_internet) %>% filter(pais_r == 'Spain'), "html", booktabs=TRUE) %>%
+#     kable_styling(bootstrap_options=c("striped", "hover", "condensed", "responsive")
+#     ,font_size = 15,full_width = T) %>%
+#     save_kable("/Users/lgutierrez/Proyectos/master/M3/A3/temp/spain_new.png")
 ```
 ![img-12](/Users/lgutierrez/Proyectos/master/M3/A3/temp/spain_new.png){width=700px}
 
 ```{r}
-kable(df_wide %>% select(pais_r, anyo, poblacion_internet_facebook) %>% filter(pais_r == 'Spain'), "html", booktabs=TRUE) %>%
-    kable_styling(bootstrap_options=c("striped", "hover", "condensed", "responsive")
-    ,font_size = 15,full_width = T) %>%
-    save_kable("/Users/lgutierrez/Proyectos/master/M3/A3/temp/spain_penetration.png")
+# kable(df_wide %>% select(pais_r, anyo, poblacion_internet_facebook) %>% filter(pais_r == 'Spain'), "html", booktabs=TRUE) %>%
+#     kable_styling(bootstrap_options=c("striped", "hover", "condensed", "responsive")
+#     ,font_size = 15,full_width = T) %>%
+#     save_kable("/Users/lgutierrez/Proyectos/master/M3/A3/temp/spain_penetration.png")
 ```
 ![img-13](/Users/lgutierrez/Proyectos/master/M3/A3/temp/spain_penetration.png){width=700px}
 
