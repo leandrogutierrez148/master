@@ -27,6 +27,7 @@ library(sp)
 library(spdep)
 library(spatialreg)
 library(MPV)
+library(DescTools)
 
 suppressPackageStartupMessages(library(tidyverse))
 suppressPackageStartupMessages(library(cowplot))
@@ -73,7 +74,8 @@ df_org <- as_tibble(table.b3[-c(23,25),])
 df <- df_org
 
 # renombramos las columnas
-colnames(df) <- c("response","displacement","horsepower","torque","compression","rearXratio","carburetor","transmissions","length","width","weight","type")
+colnames(df) <- c("response","displacement","horsepower","torque","compression",
+"rearXratio","carburetor","transmissions","length","width","weight","type")
 
 # visualizamos los datos
 summary(df)
@@ -96,44 +98,79 @@ rss <- sum(residuals(modelo_1)^2)
 
 print(rss)
 
-# graficamos matriz de correlaciones
-# cr <- cor(dplyr::select(df, - response), use="complete.obs")
-# ggcorrplot(cr, hc.order = TRUE, type = "lower", lab = TRUE)
+print(AIC(modelo_1))
+print(BIC(modelo_1))
 ```
 
 Podemos ver que nuestro modelo parece no estar capturando de manera correcta la naturaleza de nuestra variable dependiente `response`. Lo primero que observamos es bajos niveles de significancia en nuestros predictores, salvo por la variable `rearXratio` que presenta un nivel de significacia de **0.0799**, aún éste lejos del 0.05 que solemos buscar. Además se destaca el efecto marginal del incercepto demasiado alto en comparación con los demás coeficientes, un error estandard alto en comparación con su estimación y con un p-value de **0.5749**, indicandonos que su incorporación en el modelo no aporta valor alguno al momento de explicar la variable dependiente.
 
-De mismo modo notamos que obtenemos $RSS$ de **187.4007** y un $R^2_{ajustado}$ de **0.7349**, lo que nos dice nuestro modelo es capaz de explicar el 73.49% de la variabilidad total de `response`.
+De mismo modo notamos que obtenemos $RSS$ de **187.4007** y un $R^2_{ajustado}$ de **0.7349**, lo que nos dice nuestro modelo es capaz de explicar el 73.49% de la variabilidad total de `response`. Un $AIC$ de **166.0979** y un $BIC$ de **184.3134**.
 
-A continuación intentaremos mejorar nuestro modelo incorporando efectos no lineales de las variables independientes, para ello utilizaremos la función `earth` con un threshold de **0.01**
+Veamos las correalciones las variables predictoras
+```{r, fig.height=10, fig.width=6}
+# graficamos matriz de correlaciones
+cr <- cor(dplyr::select(df, - response), use="complete.obs")
+ggcorrplot(cr, hc.order = TRUE, type = "lower", lab = TRUE)
+```
 
+Efectivamente existe alta correlación entre algunas variables predictoras por lo que podría ser conveniente una selección de las mismas. Eliminaremos tanto `length` como `weight` por su alta correlación con la variable `width` la cual permanecerá en el modelo. También notamos `horsepower` con alta correlación con las demás variables, dispensaremos de su uso en esta nueva propuesta.
+
+Intentando mejorar nuestro modelo incorporando efectos no lineales de las variables independientes, para ello utilizaremos la función `earth` con un threshold de **0.01**
 ```{r}
 # creamos el modelo
-modelo_earth <- earth(response ~ ., df, thresh=0.01)
+modelo_earth <- earth(response ~ . -length -weight -horsepower, df, thresh=0.01)
 
 # visualizamos el summary
 summary(modelo_earth)
 
 # calculamos R^2 ajustado
-rs <- 0.9096004
+rs <- 0.9029254
 p <- length(modelo_earth$coefficients) - 1  # quitamos intercept
 n <- nrow(df)
 rsa <- 1 - (1 - rs) * ((n - 1) / (n - p - 1))
+
 print(rsa)
 
-# numero de params
+# calculamos RSS
+rss <- sum(residuals(modelo_earth)^2)
+
+# coeficientes del modelo
 k <- length(coef(modelo_earth))
 
-# numero de observaciones
+# tamaño de la muestra
 n <- nrow(df)
 
-# calculamos el BIC
-bic <- n * log(rss / n) + k * log(n)
+# calculamos AIC
+aic <- n * log(rss/n) + 2 * k
 
+# calculamos BIC
+bic <- n * log(rss/n) + log(n) * k
+
+print(aic)
 print(bic)
 ```
 
-La función `earth` nos entrega un modelo basado splines, donde seleccionó 5 terminos (los observados en el summary) a partir de los 11 predictores originales. Obtuvimos un $RSS$ (**Suma de los Cuadrados de los Residuos**) de **102.9747** disminuyendo respecto al modelo original con todas las variables predictoras incorporadas. Además, nos entrega un $R^2_{ajustado}$ **0.8951** también mejorando el valor obtenido por el modelo original. Y obtuvimos un $BIC$ de **71.9675**
+La función `earth` nos entrega un modelo basado splines, donde seleccionó 5 terminos (los observados en el summary) a partir de los 11 predictores originales. Obtuvimos un $RSS$ (**Suma de los Cuadrados de los Residuos**) de **169.6323** disminuyendo respecto al modelo original con todas las variables predictoras incorporadas. Además, nos entrega un $R^2_{ajustado}$ **0.88270** también mejorando el valor obtenido por el modelo original. Obtenemos valores de $AIC$ **51.13575** y $BIC$ **59.54293**.
+
+Hacemos un control de residuos y su normalidad
+```{r}
+# obtenemos los residuos del modelo
+residuos <- modelo_earth$residuals
+
+# graficamos un histograma de los residuos
+hist(residuos, main="Histograma de Residuos", xlab="Residuos", breaks=20)
+
+# realizamos gráfico Q-Q
+qqnorm(residuos)
+qqline(residuos, col = "red")
+
+# realizamos teste Jarque Bera
+JarqueBeraTest(residuos)
+```
+
+Surge del análisis visual para la comprobación de la hipótesis de linealidad de los residuos, que los mismo aparéntan guardar una relación lineal según el **gráfico Q-Q** y parecén aproximarse a una distribución normal según su **histograma**. 
+
+Según el Test Jarque Bera los residuos parecen guardar una distribución normal, sin suficiente evidencia (p-value: **0.3268**) para descartar la hipótesis nula, que plantea que los residuos del modelo siguen una distribución normal.
 
 ## Apartado 2
 Para este apartado utilizaremos la función `stepAIC` del paquete `MASS` el cual realiza una simplificación de nuestro modelo descartando las variables que generan la menor perdida de información posible, en este caso utilizaremos el metodo hibrido (**both**) para la selección
@@ -205,25 +242,41 @@ stepwise <- function(df, k){
 ```
 
 ```{r}
+# seteamos la penalización
 k=0.005
 
+# obtenemos los modelos
 modelos <- stepwise(df, k)
+
+# visualizamos los candidatos
 pander(modelos, split.table=TRUE)
-cat(paste0("El mejor modelo con k = ", k, ":\n", modelos[which.min(modelos$V2), c("V1", "V2")]))
+```
+
+Como último paso podemos encontrar el mejor modelo para `k = 0.005`
+```{r, echo=FALSE}
+# visualizamos el mejor modelo
+cat(paste0("El mejor modelo con k = ", k, ": "))
+pander(modelos[which.min(modelos$V2), c("V1")])
 ```
 
 Con una penalización por la inclusión de nuevas variables (`k`) igual a **0.005** obtenemos un modelo muy selectivo, con solo una variable predictora en su fórmula, `displacement`, y un valor para la función a minimizar de **0.07727**.
 
 ## Apartado 4
-A continuación modificaremos los valores de `k` para ver como afecta éste parámetro a la selección del modelo óptimo
+A continuación modificaremos los valores de `k` para ver como afecta éste parámetro a la selección del modelo óptimo. En estas ejecuciones prescindiremos de los outputs auxiliares que utlizamos en el apartado anterior, ya que asumimos que ya se explicitó el proceso de selección que propone el algoritmo
 
 ```{r}
+# seteamos la penalización
 k=0.002
 
+# obtenemos los modelos
 modelos <- stepwise(df, k)
-pander(modelos, split.table=TRUE)
-cat(paste0("El mejor modelo con k = ", k, ":\n", modelos[which.min(modelos$V2), c("V1", "V2")]))
+```
 
+Encontremos el mejor de los modelos para `k = 0.002`
+```{r, echo=FALSE}
+# visualizamos el mejor modelo
+cat(paste0("El mejor modelo con k = ", k, ": "))
+pander(modelos[which.min(modelos$V2), c("V1")])
 ```
 
 Notamos que al tomar el valor `k = 0.002` el mejor modelo lo obtenemos con dos variables predictoras `displacement+compression` y un valor de **0.07374** para el criterio **U** (resultado de la función a minimizar).
@@ -231,11 +284,18 @@ Notamos que al tomar el valor `k = 0.002` el mejor modelo lo obtenemos con dos v
 Si por último elegimos una penalización muy pequeña por la inclusión de variables predictoras obtendremos los siguientes resultados
 
 ```{r}
+# seteamos la penalización
 k=0.001
 
+# obtenemos los modelos
 modelos <- stepwise(df, k)
-pander(modelos, split.table=TRUE)
-cat(paste0("El mejor modelo con k = ", k, ":\n", modelos[which.min(modelos$V2), c("V1", "V2")]))
+```
+
+Por último encontremos modelo que minimiza la funcíon
+```{r, echo=FALSE}
+# visualizamos el mejor modelo
+cat(paste0("El mejor modelo con k = ", k, ": "))
+pander(modelos[which.min(modelos$V2), c("V1")])
 ```
 
 Para el valor de `k = 0.001` el mejor modelo contiene en su formula 9 de las 11 variables predictoras disponibles y la función a minimizar toma un valor de **0.06898**. 
@@ -244,17 +304,37 @@ A esta altura es necesario destacar que cuanto menos se penaliza la inclusión d
 
 
 ## Apartado 5
+Vimos que en términos de la función $U$ planteada en el **Apartado 3** el mejor modelo se obtiene al incluir mas variables en su fórmula, ahora bien ¿está nuestra función selectora de variable penalizando correctamente la complejidad computacional de incluir todas las variables?
 
+Nos valdremos de los critérios comunmente utilizados para tratar de encontrar el mejor ajuste entre las propuestas obtuvimos en los apartados anterires
 ```{r}
+# creamos modelo con dos variables
+modelo_step <- lm(response~displacement+compression, df)
+summary(modelo_step)
+AIC(modelo_step)
+BIC(modelo_step)
 
-model_step <- lm(response~displacement+compression, df)
-model_step_all <- lm(response~displacement+compression+width+length+weight+rearXratio+transmissions+torque+horsepower, df)
+# creamos modelo con 9 variables
+modelo_step_all <- lm(response~displacement+compression+width+length+weight+rearXratio+transmissions+torque+horsepower, df)
+summary(modelo_step_all)
+AIC(modelo_step_all)
+BIC(modelo_step_all)
 
-summary(model_step)
-AIC(model_step)
-BIC(model_step)
-
-summary(model_step_all)
-AIC(model_step_all)
-BIC(model_step_all)
+# vemos resultados de modelo_earth
+summary(modelo_earth)
+print(rsa)
+print(aic)
+print(bic)
 ```
+
+En términos de $R^2_{ajustado}$, $AIC$ y $BIC$ parece nuestro `modelo_earth` el que mejor valores entrega. Tomaremos como mejor propuesta el modelo MARS entregado por la función `earth`. El mismo se define por
+
+$$
+\begin{split}
+\hat{response}=\beta_0+\beta_1*transmissions+\beta_2*h(250-displacement)+ \\
+\beta_3*h(displacement-250)+\beta_4*h(3.08-rearXratio)+ \\
+\beta_5*h(rearXratio-3.08)+\epsilon
+\end{split}
+$$
+
+Este modelo posee un $R^2_{ajustado}$ de **0.8827015**, que nos indica que es capaz de predecir el **83.39%** de la varianza de la variable `response`. A su vez obtenemos un **AIC** de **51.13575**, el mejor de todos los modelos planteados en el práctico. También un **BIC** de **59.54293**, el mejor entre los modelos que se analizaron.
